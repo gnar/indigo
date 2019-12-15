@@ -1,0 +1,84 @@
+name:                indigo
+version:             0.1.0.0
+github:              "gnar/indigo"
+license:             BSD3
+author:              "Gunnar Selke"
+maintainer:          "indigo@gnnr.de"
+copyright:           "2018 Gunnar Selke"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            App category here
+
+description: |
+  Please see the README on GitHub at <https://github.com/gnar/indigo#readme>
+
+dependencies:
+  - base >= 4.7 && < 5
+  - mtl
+  - lens
+  - array
+  - containers
+  - text
+  - string-qq
+  - bytestring
+  - aeson
+  - aeson-pretty
+  - blaze-html
+  - blaze-builder
+  - wai
+  - warp
+  - servant
+  - servant-server
+  - servant-blaze
+  - servant-js
+  - filepath
+  - directory
+  - attoparsec
+  - replace-attoparsec
+  - pandoc
+
+library:
+  source-dirs: src
+
+default-extensions:
+  - OverloadedStrings
+  - GeneralizedNewtypeDeriving
+  - DeriveGeneric
+  - DeriveFunctor
+  - DeriveTraversable
+  - StandaloneDeriving
+  - DeriveAnyClass
+  - LambdaCase
+  - NamedFieldPuns
+  - DeriveGeneric
+  - TypeOperators
+  - QuasiQuotes
+  - RecordWildCards
+
+executables:
+  indigo-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - indigo
+
+tests:
+  indigo-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - indigo
+      - hspec
