@@ -40,8 +40,8 @@ renderPageTemplate title contents =
       H.meta ! A.name "viewport" ! A.content "width=device-width, initial-scale=1"
       H.meta ! A.name "description" ! A.content ""
       H.meta ! A.name "author" ! A.content ""
-      H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/css/bootstrap.min.css"))
-      H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/css/user.css"))
+      H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/bootstrap.min.css"))
+      H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/user.css"))
       H.title $ H.toHtml title
     H.body $ do
       H.header $ do
@@ -60,8 +60,8 @@ renderPageTemplate title contents =
                   H.button ! A.class_ "btn btn-outline-success my-2 my-sm-0" ! A.type_ "submit" $ "Search"
       H.div ! A.class_ "container" $ do
         contents
-        H.script ! A.src (H.toValue (linkPrefix ++ "static/js/jquery-3.4.1.min.js")) $ pure ()
-        H.script ! A.src (H.toValue (linkPrefix ++ "static/js/bootstrap.min.js")) $ pure ()
+        H.script ! A.src (H.toValue (linkPrefix ++ "static/jquery-3.4.1.min.js")) $ pure ()
+        H.script ! A.src (H.toValue (linkPrefix ++ "static/bootstrap.min.js")) $ pure ()
         H.script ! A.src (H.toValue (linkPrefix ++ "static/api.js")) $ pure ()
 
 renderViewPage :: WikiEnv -> Page -> H.Html
