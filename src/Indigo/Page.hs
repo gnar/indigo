@@ -26,13 +26,6 @@ data Page = Page {
   _meta :: PageMeta
 } deriving (Generic, Show)
 
-data PageMeta = PageMeta {
-  _tags :: [T.Text]
-} deriving (Generic, Show)
-
-deriving instance FromJSON PageMeta
-deriving instance ToJSON PageMeta
-
 name :: Lens' Page T.Text
 name = lens _name (\p n -> p { _name = n })
 
@@ -41,6 +34,11 @@ text = lens _text (\p t -> p { _text = t })
 
 meta :: Lens' Page PageMeta
 meta = lens _meta (\p m -> p { _meta = m })
+
+newtype PageMeta = PageMeta { _tags :: [T.Text] } deriving (Generic, Show)
+
+instance ToJSON PageMeta where toJSON = genericToJSON jsonConfig
+instance FromJSON PageMeta where parseJSON = genericParseJSON jsonConfig
 
 tags :: Lens' PageMeta [T.Text]
 tags = lens _tags (\m t -> m { _tags = t })
@@ -77,9 +75,9 @@ loadOrCreatePage env name = do
     page <- loadPage env name
     case page of
       Just p -> pure p
-      Nothing -> updatePage env page' >> pure page'
+      Nothing -> updatePage env newPage' >> pure newPage'
   where
-    page' = newPage name
+    newPage' = newPage name
 
 updatePage :: WikiEnv -> Page -> IO ()
 updatePage e page = do

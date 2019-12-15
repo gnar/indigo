@@ -34,7 +34,7 @@ parseWikiTag =
     pureWikiPageLink page text = pure $ WikiPageLink page text
 
 renderPageLink :: WikiEnv -> T.Text -> T.Text
-renderPageLink env page = env ^. host <> "/" <> page
+renderPageLink env page = env ^. host <> "/pages/" <> page
 
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
 renderWikiTag _ (WikiError tokens) = "[" <> T.intercalate "|" tokens <> "]"

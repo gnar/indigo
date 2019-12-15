@@ -59,6 +59,7 @@ default-extensions:
   - TypeOperators
   - QuasiQuotes
   - RecordWildCards
+  - DataKinds
 
 executables:
   indigo-exe:
