@@ -35,6 +35,7 @@ dependencies:
   - servant-server
   - servant-blaze
   - servant-js
+  - http-api-data
   - filepath
   - directory
   - attoparsec

@@ -19,35 +19,25 @@ data WikiTag =
   deriving (Eq, Show)
 
 parseWikiTag :: Parser WikiTag
-parseWikiTag = do
-  tokens <- (string "->" <?> "expected '->'") *> (parenTokens <|> tokens) :: Parser [T.Text]
-  case tokens of
+parseWikiTag =
+  parse >>= \case
     [""] -> pureWikiError []
-
-    -- page links
     ["page", page] -> pureWikiPageLink page page
     ["page", page, text] -> pureWikiPageLink page text
-
-    -- hash tags
-    ("tag": tags) -> pure $ WikiHashTag tags
-
-    -- default to page link
+    ("tag":tags) -> pure $ WikiHashTag tags
     [page] -> pureWikiPageLink page page
     [page, text] -> pureWikiPageLink page text
-
     tokens -> pureWikiError tokens
   where
-    parenTokens = char '(' *> (A.takeWhile (`notElem` [')', ':']) `sepBy` char ':') <* char ')'
-    tokens = A.takeWhile (not . (\ch -> isSpace ch || ch == ':')) `sepBy` char ':'
-
-    pureWikiError tokens = pure (WikiError tokens)
+    parse = char '{' *> (A.takeWhile (`notElem` ['}', '|']) `sepBy` char '|') <* char '}'
+    pureWikiError tokens = pure $ WikiError tokens
     pureWikiPageLink page text = pure $ WikiPageLink page text
 
 renderPageLink :: WikiEnv -> T.Text -> T.Text
 renderPageLink env page = env ^. host <> "/" <> page
 
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
-renderWikiTag _ (WikiError toks) = "`->" <> T.intercalate ":" toks <> "`"
+renderWikiTag _ (WikiError tokens) = "[" <> T.intercalate "|" tokens <> "]"
 renderWikiTag _ (WikiHashTag _) = ""
 renderWikiTag e (WikiPageLink page text) = mconcat ["<a href=\"", renderPageLink e page, "\">", text, "</a>"]
 

@@ -26,6 +26,7 @@ import qualified Indigo.Api as Api
 import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
+import Control.Monad (forM_)
 
 linkPrefix :: (IsString a) => a
 linkPrefix = "http://localhost:8080/"
@@ -40,6 +41,7 @@ renderPageTemplate title contents =
       H.meta ! A.name "description" ! A.content ""
       H.meta ! A.name "author" ! A.content ""
       H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/css/bootstrap.min.css"))
+      H.link ! A.rel "stylesheet" ! A.href (H.toValue (linkPrefix ++ "static/css/user.css"))
       H.title $ H.toHtml title
     H.body $ do
       H.header $ do
@@ -63,15 +65,21 @@ renderPageTemplate title contents =
         H.script ! A.src (H.toValue (linkPrefix ++ "static/api.js")) $ pure ()
 
 renderViewPage :: WikiEnv -> Page -> H.Html
-renderViewPage env page = renderPageTemplate (page ^. name) (pageHtml env page)
+renderViewPage env page = renderPageTemplate (page ^. name) $ do
+  H.p $ do
+    forM_ (page ^. meta . tags) $ \tag -> do
+      H.span ! A.class_ "badge badge-secondary" $ H.toHtml tag
+      H.preEscapedText "&nbsp;"
+  H.p $ do
+    pageHtml env page
 
 renderEditPage :: WikiEnv -> Page -> H.Html
 renderEditPage env page = do
   renderPageTemplate (page ^. name) $ do
     H.h1 (H.toHtml (page ^. name))
-    H.form $ do
+    H.form ! A.action "#" ! A.method "post" $ do
       H.div ! A.class_ "form-group" $ do
-        H.textarea ! A.class_ "form-control" ! A.rows "40" $ H.toHtml (page ^. text)
+        H.textarea ! A.name "text" ! A.class_ "form-control" ! A.rows "25" $ H.toHtml (page ^. text)
       H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
 renderMissingPage :: WikiEnv -> T.Text -> H.Html

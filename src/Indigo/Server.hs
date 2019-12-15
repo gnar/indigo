@@ -12,35 +12,43 @@ import Servant.JS
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 
-import Indigo.Api
+import Indigo.Api as Api
 import Indigo.Render
 import Text.Blaze.Html5 (Markup, toHtml)
 --import Data.Aeson (Value)
 
-import Indigo.Page (Page(..), loadPage, newPage, updatePage, loadOrCreatePage, deletePage)
+import Indigo.Page as Models (Page(..), loadPage, newPage, updatePage, loadOrCreatePage, deletePage)
 import Indigo.WikiEnv
 
 uiServer :: WikiEnv -> Server FrontendUi
-uiServer env = page
+uiServer env = getPage :<|> postPage
   where
-    page :: T.Text -> Maybe PageAction -> Handler Markup
-    page name (Just PageCreate) = do
+    getPage :: T.Text -> Maybe PageAction -> Handler Markup
+    getPage name (Just PageCreate) = do
       page <- liftIO $ loadOrCreatePage env name
       pure $ renderViewPage env page
-    page name (Just PageView) = do
+    getPage name (Just PageView) = do
       page <- liftIO $ loadPage env name
       case page of
         Just page -> pure $ renderViewPage env page
         Nothing -> pure $ renderMissingPage env name
-    page name (Just PageEdit) = do
+    getPage name (Just PageEdit) = do
       page <- liftIO $ loadPage env name
       case page of
         Just page -> pure $ renderEditPage env page
         Nothing -> pure $ renderMissingPage env name
-    page name (Just PageDelete) = do
+    getPage name (Just PageDelete) = do
       () <- liftIO $ deletePage env name
       pure (renderMissingPage env name)
-    page name _ = page name (Just PageView)
+    getPage name _ = getPage name (Just PageView)
+
+    postPage :: T.Text -> PageForm -> Handler Markup
+    postPage name form = do
+      page <- liftIO $ loadOrCreatePage env name
+      let page' = page { Models._text = Api.text form }
+      seq page' (liftIO $ updatePage env page')
+      pure $ renderViewPage env page'
+
 
 apiServer = undefined
 --apiServer :: Server BackendApi

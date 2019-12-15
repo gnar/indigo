@@ -11,9 +11,9 @@ import Data.Aeson
 import GHC.Generics
 import Data.Text as T
 
-data PageDto = PageDto { id :: Maybe Int
-                       , name :: T.Text
-                       , text :: T.Text
+data PageDto = PageDto { _id :: Maybe Int
+                       , _name :: T.Text
+                       , _text :: T.Text
                        } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 type BackendApi = "pages" :> PageApi
