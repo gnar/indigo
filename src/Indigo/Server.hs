@@ -32,6 +32,11 @@ uiServer env = page
       case page of
         Just page -> pure $ renderViewPage env page
         Nothing -> pure $ renderMissingPage env name
+    page name (Just PageEdit) = do
+      page <- liftIO $ loadPage env name
+      case page of
+        Just page -> pure $ renderEditPage env page
+        Nothing -> pure $ renderMissingPage env name
     page name (Just PageDelete) = do
       () <- liftIO $ deletePage env name
       pure (renderMissingPage env name)

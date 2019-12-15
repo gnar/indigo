@@ -1,5 +1,6 @@
 module Indigo.Render (
     renderViewPage
+  , renderEditPage
   , renderMissingPage
 ) where
 
@@ -63,6 +64,15 @@ renderPageTemplate title contents =
 
 renderViewPage :: WikiEnv -> Page -> H.Html
 renderViewPage env page = renderPageTemplate (page ^. name) (pageHtml env page)
+
+renderEditPage :: WikiEnv -> Page -> H.Html
+renderEditPage env page = do
+  renderPageTemplate (page ^. name) $ do
+    H.h1 (H.toHtml (page ^. name))
+    H.form $ do
+      H.div ! A.class_ "form-group" $ do
+        H.textarea ! A.class_ "form-control" ! A.rows "40" $ H.toHtml (page ^. text)
+      H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
 renderMissingPage :: WikiEnv -> T.Text -> H.Html
 renderMissingPage env name = do
