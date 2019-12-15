@@ -31,8 +31,8 @@ renderPageTemplate env title contents =
       H.meta ! A.name "viewport" ! A.content "width=device-width, initial-scale=1"
       H.meta ! A.name "description" ! A.content ""
       H.meta ! A.name "author" ! A.content ""
-      H.link ! A.rel "stylesheet" ! A.href (H.toValue (host <> "/static/bootstrap.min.css"))
-      H.link ! A.rel "stylesheet" ! A.href (H.toValue (host <> "/static/user.css"))
+      H.link ! A.rel "stylesheet" ! A.href (H.toValue (staticLink "/static/bootstrap.min.css"))
+      H.link ! A.rel "stylesheet" ! A.href (H.toValue (staticLink "/static/user.css"))
       H.title $ H.toHtml title
     H.body $ do
       H.header $ do
@@ -51,10 +51,10 @@ renderPageTemplate env title contents =
               H.button ! A.class_ "btn btn-outline-success my-2 my-sm-0" ! A.type_ "submit" $ "Search"
       H.div ! A.class_ "container" $ do
         contents
-        H.script ! A.src (H.toValue (host <> "/static/jquery.min.js")) $ pure ()
-        H.script ! A.src (H.toValue (host <> "/static/bootstrap.min.js")) $ pure ()
+        H.script ! A.src (H.toValue (staticLink "/static/jquery.min.js")) $ pure ()
+        H.script ! A.src (H.toValue (staticLink "/static/bootstrap.min.js")) $ pure ()
   where
-    host = _host env
+    staticLink path = (env ^. host) <> path
 
 renderViewPage :: WikiEnv -> Page -> H.Html
 renderViewPage env page =
