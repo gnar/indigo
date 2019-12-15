@@ -14,19 +14,28 @@ import Network.Wai.Handler.Warp (run)
 
 import Indigo.Api
 import Indigo.Render
-import Text.Blaze.Html5 (Markup)
+import Text.Blaze.Html5 (Markup, toHtml)
 --import Data.Aeson (Value)
 
-import Indigo.Page (Page(..), loadPage, newPage, updatePage, loadOrCreatePage)
+import Indigo.Page (Page(..), loadPage, newPage, updatePage, loadOrCreatePage, deletePage)
 import Indigo.WikiEnv
 
-uiServer :: Server FrontendUi
-uiServer = pageUi
+uiServer :: WikiEnv -> Server FrontendUi
+uiServer env = page
   where
-    pageUi :: T.Text -> Handler Markup
-    pageUi name = do
-      page <- liftIO $ loadOrCreatePage env0 name
-      pure $ renderPage env0 page
+    page :: T.Text -> Maybe PageAction -> Handler Markup
+    page name (Just PageCreate) = do
+      page <- liftIO $ loadOrCreatePage env name
+      pure $ renderViewPage env page
+    page name (Just PageView) = do
+      page <- liftIO $ loadPage env name
+      case page of
+        Just page -> pure $ renderViewPage env page
+        Nothing -> pure $ renderMissingPage env name
+    page name (Just PageDelete) = do
+      () <- liftIO $ deletePage env name
+      pure (renderMissingPage env name)
+    page name _ = page name (Just PageView)
 
 apiServer = undefined
 --apiServer :: Server BackendApi
@@ -52,7 +61,7 @@ apiServer = undefined
 --    getArticleContentHtml = getArticleContent
 
 type Routes = FrontendUi
-              -- :<|> "api" :> BackendApi
+              :<|> "api" :> BackendApi
               :<|> "static" :> "api.js" :> Get '[PlainText] T.Text
               :<|> "static" :> Raw
 
@@ -64,11 +73,8 @@ apiJs = jsForAPI api jquery
     api = Proxy :: Proxy JsApi'
 
 main :: IO ()
-main = do
-    run 8080 $ serve routes server
+main = run 8080 $ serve routes (uiServer env0 :<|> apiServer :<|> apiJsServer :<|> staticServer)
   where
     routes = Proxy :: Proxy Routes
-    server = uiServer {- -:<|> apiServer -} :<|> apiJsServer :<|> staticServer
     staticServer = serveDirectoryWebApp "static"
     apiJsServer = pure apiJs
-

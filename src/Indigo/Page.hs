@@ -38,6 +38,11 @@ loadPage e name = do
   where
     file = T.unpack $ pageFile e name
 
+deletePage :: WikiEnv -> T.Text -> IO ()
+deletePage e name = removeFile file
+  where
+    file = T.unpack $ pageFile e name
+
 loadOrCreatePage :: WikiEnv -> T.Text -> IO Page
 loadOrCreatePage env name = do
     page <- loadPage env name

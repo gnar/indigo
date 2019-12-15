@@ -26,7 +26,7 @@ testWikiTags = describe "WikiTags" $ do
       renderWikiTag env (WikiError ["one", "two"]) `shouldBe` "`->one:two`"
 
     it "renders links" $ do
-      renderWikiTag env (WikiPageLink "Main Page" "the main page") `shouldBe` "[the main page](http://example.com/Main Page)"
+      renderWikiTag env (WikiPageLink "Main Page" "the main page") `shouldBe` "<a href=\"http://example.com/Main Page\">the main page</a>"
 
 
 main :: IO ()
