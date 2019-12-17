@@ -15,12 +15,17 @@ import Indigo.Page as Page
 import Indigo.Render
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.FileSystem as RepoFileSystem
+import Control.Monad (forM)
+
+import Indigo.Tags (generate)
+import Data.Maybe (fromJust)
 
 pages :: WikiEnv -> Repo.Handle -> Server FrontendApi
 pages env repo = getPage :<|> postPage
   where
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
     getPage name (Just PageCreate) = do
+      liftIO $ Repo.pageIndex repo >>= print
       page <- liftIO $ Repo.loadOrCreatePage repo name
       pure $ renderViewPage env page
     getPage name (Just PageView) = do
@@ -37,12 +42,11 @@ pages env repo = getPage :<|> postPage
       () <- liftIO $ Repo.deletePage repo name
       pure (renderMissingPage env name)
     getPage name _ = getPage name (Just PageView)
-
     postPage :: T.Text -> PageForm -> Handler Markup
     postPage name form = do
       page <- liftIO $ Repo.loadOrCreatePage repo name
-      let page' = page { Page._text = Api.text form }
-      seq page' (liftIO $ Repo.updatePage repo page')
+      let page' = page {Page._text = Api.text form}
+      liftIO $ Repo.updatePage repo page'
       pure $ renderViewPage env page'
 
 type Routes = FrontendApi :<|> "static" :> Raw
@@ -52,10 +56,13 @@ server env repo = pages env repo :<|> serveDirectoryWebApp (env ^. staticDir)
 
 main :: IO ()
 main =
-    RepoFileSystem.withHandle (env ^. pageDir) $ \repo ->
-      run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
+  RepoFileSystem.withHandle (env ^. pageDir) $ \repo -> do
+    names <- Repo.pageIndex repo
+    pages <- forM names (Repo.loadPage repo)
+    let metas = fmap ((\p -> (_name p, _meta p)) . fromJust) pages
+    let tags = generate metas
+    print tags
+
+    run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
   where
-    env = WikiEnv { _host = "http://localhost:8080"
-                  , _pageDir = "pages"
-                  , _staticDir = "static"
-                  }
+    env = WikiEnv {_host = "http://localhost:8080", _pageDir = "pages", _staticDir = "static"}

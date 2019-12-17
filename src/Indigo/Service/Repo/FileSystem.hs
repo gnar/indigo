@@ -9,13 +9,16 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import System.Directory (doesFileExist, removeFile)
-import Data.Maybe (fromMaybe)
+import System.Directory
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Aeson (decode, encode)
 import Control.Lens ((^.))
+import Control.Monad (guard)
+import Data.List (isSuffixOf)
 
 newHandle :: FilePath -> Repo.Handle
 newHandle path = Repo.Handle {
+  pageIndex = pageIndex' path,
   loadPage = loadPage' path,
   updatePage = updatePage' path,
   deletePage = deletePage' path
@@ -23,6 +26,17 @@ newHandle path = Repo.Handle {
 
 pageMetaFile path name = path <> "/" <> T.unpack name <> ".json" :: FilePath
 pageTextFile path name = path <> "/" <> T.unpack name <> ".md" :: FilePath
+
+pageIndex' :: FilePath -> IO [T.Text]
+pageIndex' path = do
+    listing <- listDirectory path
+    pure $ catMaybes $ extractName <$> listing
+  where
+    extractName :: FilePath -> Maybe T.Text
+    extractName f =
+      case ".json" `T.breakOn` T.pack f of
+        (name, ".json") -> Just name
+        _ -> Nothing
 
 loadPage' :: FilePath -> T.Text -> IO (Maybe Page)
 loadPage' path name = do

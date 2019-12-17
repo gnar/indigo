@@ -1,13 +1,13 @@
 module Indigo.Service.Repo where
 
-import Indigo.Page
+import Data.Maybe (maybe)
 import qualified Data.Text as T
 
-import Control.Monad.IO.Class
-import Data.Maybe (maybe)
+import Indigo.Page
 
 data Handle = Handle {
-    loadPage :: T.Text -> IO (Maybe Page)
+    pageIndex :: IO [T.Text]
+  , loadPage :: T.Text -> IO (Maybe Page)
   , updatePage :: Page -> IO Page
   , deletePage :: T.Text -> IO ()
 }
