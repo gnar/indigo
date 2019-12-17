@@ -1,12 +1,8 @@
 module Indigo.WikiTag where
 
-import Control.Lens
+import Control.Lens ((^.))
 import qualified Data.Text as T
 import Data.Attoparsec.Text as A
-import Data.Char (isSpace)
-import Control.Applicative
-
-import System.FilePath ((</>))
 
 import Replace.Attoparsec.Text (streamEdit)
 

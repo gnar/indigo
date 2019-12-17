@@ -19,6 +19,7 @@ description: |
 dependencies:
   - base >= 4.7 && < 5
   - mtl
+  - transformers
   - lens
   - array
   - containers
@@ -48,6 +49,7 @@ library:
 default-extensions:
   - OverloadedStrings
   - GeneralizedNewtypeDeriving
+  - DerivingStrategies
   - DeriveGeneric
   - DeriveFunctor
   - DeriveTraversable

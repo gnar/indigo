@@ -4,23 +4,30 @@ module Indigo.Render (
   , renderMissingPage
 ) where
 
---import Data.String.QQ
-import Data.Maybe (fromJust, fromMaybe)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad (forM_)
-import qualified Data.Text as T
-
 import Control.Lens ((^.))
-
-import Servant
---import Servant.Links
+import qualified Data.Text as T
 
 import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as A
 
+import Text.Pandoc hiding (Reader(..))
+
 import Indigo.Page
 import Indigo.WikiEnv
+import Indigo.WikiTag
+
+pageHtml :: WikiEnv -> Page -> H.Html
+pageHtml env page =
+  let
+      rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
+      wrOpts = def :: WriterOptions
+      text' = processWikiText env (page ^. text)
+      res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
+  in case res of
+      Left err -> undefined
+      Right doc -> doc
 
 renderPageTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderPageTemplate env title contents =
