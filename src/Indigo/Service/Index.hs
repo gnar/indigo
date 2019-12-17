@@ -1,62 +1,94 @@
-module Indigo.Service.Index (Handle(..), withHandle, rebuild) where
+module Indigo.Service.Index (Handle(..), withHandle, rebuild, dump) where
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Data.Map.Strict (Map)
+import Data.Map.Strict (Map, (!), (!?))
 import qualified Data.Map.Strict as Map
 
 import Control.Monad (forM_)
 import Control.Lens ((^.))
 import Data.IORef
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 
 import Indigo.Page
 import qualified Indigo.Service.Repo as Repo
 
 data Handle = Handle {
-  getTags :: IO [T.Text],
-  findByTag :: T.Text -> IO [PageMeta],
+  -- inspection
+  findAllNames :: IO [T.Text],
+  findAllTags :: IO [T.Text],
+  findByName :: T.Text -> IO (Maybe PageMeta),
+  findByTag :: T.Text -> IO [(T.Text, PageMeta)],
 
+  -- mutation
   clear :: IO (),
-  update :: T.Text -> PageMeta -> IO ()
+  update :: T.Text -> PageMeta -> IO (),
+  remove :: T.Text -> IO ()
 }
 
 data Index = Index {
-  byName :: Map T.Text PageMeta,
-  byTag  :: Map T.Text [PageMeta]
+  cache :: Map T.Text PageMeta,
+  byTag :: Map T.Text [T.Text]
 } deriving Show
-
-emptyIndex = Index Map.empty Map.empty
 
 newHandle :: IO Handle
 newHandle = do
-  index <- newIORef emptyIndex
-  pure $ Handle {
-    getTags = getTags' index,
-    findByTag = findByTag' index,
-    update = \name meta -> modifyIORef' index (update' name meta),
-    clear = writeIORef index emptyIndex
-  }
+  state <- newIORef emptyIndex
+  pure
+    Handle
+      { findAllNames = findAllNames' <$> readIORef state
+      , findAllTags = findAllTags' <$> readIORef state
+      , findByName = \name -> findByName' name <$> readIORef state
+      , findByTag = \tag -> findByTag' tag <$> readIORef state
+      , update = \name meta -> modifyIORef' state (update' name meta)
+      , remove = modifyIORef' state . remove'
+      , clear = writeIORef state emptyIndex
+      }
+  where
+    emptyIndex = Index Map.empty Map.empty
 
 withHandle :: (Handle -> IO a) -> IO a
 withHandle action = newHandle >>= action
 
+----- inspection
+
+findAllNames' :: Index -> [T.Text]
+findAllNames' Index{..} = Map.keys cache
+
+findAllTags' :: Index -> [T.Text]
+findAllTags' Index{..} = Map.keys byTag
+
+findByName' :: T.Text -> Index -> Maybe PageMeta
+findByName' name Index{..} = cache !? name
+
+findByTag' :: T.Text -> Index -> [(T.Text, PageMeta)]
+findByTag' tag Index{..} = [(name, cache ! name) | name <- fromMaybe [] (byTag !? tag)]
+
+------ mutation
 update' :: T.Text -> PageMeta -> Index -> Index
-update' name meta index@Index{..} = index { byName = byName', byTag = byTag' }
+update' name meta index@Index{..} = index'
   where
-    byName' = Map.insert name meta byName
-    byTag' = byTag                                           
+    index' = index {
+      cache = Map.insert name meta cache,
+      byTag = foldr (Map.alter alterTags) byTag (meta ^. tags)
+    }
 
-getTags' :: IORef Index -> IO [T.Text]
-getTags' index = do
-  byTag <- byTag <$> readIORef index
-  pure $ Map.keys byTag
+    alterTags Nothing = Just [name]
+    alterTags (Just tags) = Just (name : filter (/= name) tags)
 
-findByTag' :: IORef Index -> T.Text -> IO [PageMeta]
-findByTag' index tag = do
-  byTag <- byTag <$> readIORef index
-  pure $ Map.findWithDefault [] tag byTag
+remove' :: T.Text -> Index -> Index
+remove' name index@Index {..} = maybe index index' (cache !? name)
+  where
+    index' meta = index {
+      cache = Map.delete name cache,
+      byTag = foldr (Map.alter alterTags) byTag (meta ^. tags)
+    }
 
+    alterTags Nothing = Nothing
+    alterTags (Just [name]) = Nothing
+    alterTags (Just tags) = Just $ filter (/= name) tags
+
+----- utils
 
 rebuild :: Handle -> Repo.Handle -> IO ()
 rebuild index repo = do
@@ -69,3 +101,11 @@ rebuild index repo = do
     update index name (page ^. meta)
     T.putStrLn $ "Updated '" <> name <> "'"
 
+dump :: Handle -> IO ()
+dump index = do
+  tags <- findAllTags index
+  forM_ tags $ \tag -> do
+    metas <- findByTag index tag
+    T.putStr $ "#" <> tag <> ": "
+    forM_ metas $ \(name, meta) -> T.putStr $ "'" <> name <> "' "
+    T.putStrLn ""

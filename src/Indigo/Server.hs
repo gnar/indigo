@@ -60,6 +60,7 @@ main =
   RepoFileSystem.withHandle (env ^. pageDir) $ \repo -> do
     Index.withHandle $ \index -> do
       Index.rebuild index repo
+      Index.dump index
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
   where
     env = WikiEnv {_host = "http://localhost:8080", _pageDir = "pages", _staticDir = "static"}
