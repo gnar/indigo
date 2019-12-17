@@ -13,6 +13,7 @@ import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
+import qualified Indigo.Service.Index as Index
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.FileSystem as RepoFileSystem
 import Control.Monad (forM)
@@ -57,12 +58,9 @@ server env repo = pages env repo :<|> serveDirectoryWebApp (env ^. staticDir)
 main :: IO ()
 main =
   RepoFileSystem.withHandle (env ^. pageDir) $ \repo -> do
-    names <- Repo.pageIndex repo
-    pages <- forM names (Repo.loadPage repo)
-    let metas = fmap ((\p -> (_name p, _meta p)) . fromJust) pages
-    let tags = generate metas
-    print tags
-
-    run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
+    Index.withHandle $ \index -> do
+      Index.rebuild index repo
+      run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
   where
     env = WikiEnv {_host = "http://localhost:8080", _pageDir = "pages", _staticDir = "static"}
+
