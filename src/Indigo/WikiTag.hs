@@ -29,13 +29,16 @@ parseWikiTag =
     pureWikiError tokens = pure $ WikiError tokens
     pureWikiPageLink page text = pure $ WikiPageLink page text
 
-renderPageLink :: WikiEnv -> T.Text -> T.Text
-renderPageLink env page = env ^. host <> "/pages/" <> page
+pageUrl :: WikiEnv -> T.Text -> T.Text
+pageUrl env name =  mconcat [env ^. host, "/pages/", name]
+
+tagUrl :: WikiEnv -> T.Text -> T.Text
+tagUrl env tag =  mconcat [env ^. host, "/tags/", tag]
 
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
 renderWikiTag _ (WikiError tokens) = "{" <> T.intercalate "|" tokens <> "}"
 renderWikiTag _ (WikiHashTag _) = ""
-renderWikiTag e (WikiPageLink page text) = mconcat ["<a href=\"", renderPageLink e page, "\">", text, "</a>"]
+renderWikiTag e (WikiPageLink page text) = mconcat ["<a href=\"", pageUrl e page, "\">", text, "</a>"]
 
 processWikiText :: WikiEnv -> T.Text -> T.Text
 processWikiText env = streamEdit parseWikiTag (renderWikiTag env)

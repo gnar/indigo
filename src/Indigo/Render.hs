@@ -2,6 +2,7 @@ module Indigo.Render (
     renderViewPage
   , renderEditPage
   , renderMissingPage
+  , renderViewTag
 ) where
 
 import Control.Monad (forM_)
@@ -12,25 +13,22 @@ import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Text.Pandoc hiding (Reader(..))
+import Text.Pandoc (ReaderOptions(..), WriterOptions(..), readMarkdown, writeHtml5, githubMarkdownExtensions, runPure, def)
 
 import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
 
-pageHtml :: WikiEnv -> Page -> H.Html
-pageHtml env page =
-  let
-      rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
-      wrOpts = def :: WriterOptions
-      text' = processWikiText env (page ^. text)
-      res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
-  in case res of
-      Left err -> undefined
-      Right doc -> doc
+renderPageLink :: WikiEnv -> T.Text -> H.Html
+renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml name
 
-renderPageTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
-renderPageTemplate env title contents =
+renderTagBadge :: WikiEnv -> T.Text -> H.Html
+renderTagBadge env tag = H.a ! A.href (H.toValue $ tagUrl env tag) $ badge
+  where
+    badge = H.span ! A.class_ "badge badge-secondary" $ H.toHtml tag
+
+renderTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html -> H.Html
+renderTemplate env title menus contents =
   H.docTypeHtml $ do
     H.head $ do
       H.meta ! A.charset "utf-8"
@@ -46,13 +44,8 @@ renderPageTemplate env title contents =
         H.nav ! A.class_ "navbar navbar-expand-lg navbar-light bg-light" $ do
           H.div ! A.class_ "collapse navbar-collapse" ! A.id "navbarSupportedContent" $ do
             H.ul ! A.class_ "navbar-nav mr-auto" $ do
-              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href "Hauptseite" $ "Home"
-              H.li ! A.class_ "nav-item dropdown" $ do
-                H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "This page"
-                H.div ! A.class_ "dropdown-menu" $ do
-                  H.a ! A.class_ "dropdown-item" ! A.href "?action=view" $ "View"
-                  H.a ! A.class_ "dropdown-item" ! A.href "?action=edit" $ "Edit"
-                  H.a ! A.class_ "dropdown-item" ! A.href "?action=delete" $ "Delete"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env "Hauptseite") $ "Home"
+              menus
             H.form ! A.class_ "form-inline my-2 my-lg-0" $ do
               H.input ! A.class_ "form-control mr-sm-2" ! A.type_ "search" ! A.placeholder "Search"
               H.button ! A.class_ "btn btn-outline-success my-2 my-sm-0" ! A.type_ "submit" $ "Search"
@@ -63,11 +56,36 @@ renderPageTemplate env title contents =
   where
     staticLink path = (env ^. host) <> path
 
+renderPageTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
+renderPageTemplate env title contents = renderTemplate env title thisPageMenu contents
+  where
+    thisPageMenu = do
+      H.li ! A.class_ "nav-item dropdown" $ do
+        H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "This page"
+        H.div ! A.class_ "dropdown-menu" $ do
+          H.a ! A.class_ "dropdown-item" ! A.href "?action=view" $ "View"
+          H.a ! A.class_ "dropdown-item" ! A.href "?action=edit" $ "Edit"
+          H.a ! A.class_ "dropdown-item" ! A.href "?action=delete" $ "Delete"
+
+renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
+renderTagTemplate env title contents = renderTemplate env title mempty contents
+
+pageHtml :: WikiEnv -> Page -> H.Html
+pageHtml env page =
+  let
+      rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
+      wrOpts = def :: WriterOptions
+      text' = processWikiText env (page ^. text)
+      res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
+  in case res of
+      Left err -> undefined
+      Right doc -> doc
+
 renderViewPage :: WikiEnv -> Page -> H.Html
 renderViewPage env page =
   renderPageTemplate env (page ^. name) $ do
     H.p $ forM_ (page ^. meta . tags) $ \tag -> do
-      H.span ! A.class_ "badge badge-secondary" $ H.toHtml tag
+      renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
       pageHtml env page
@@ -86,7 +104,15 @@ renderEditPage env page =
 renderMissingPage :: WikiEnv -> T.Text -> H.Html
 renderMissingPage env name =
   renderPageTemplate env name $ do
-      H.h1 (H.toHtml name)
-      H.p $ do
-        H.toHtml ("Page " <> name <> " does not exist. ")
-        H.a ! A.href "?action=create" $ "Create it?"
+    H.h1 (H.toHtml name)
+    H.p $ do
+      H.toHtml ("Page " <> name <> " does not exist. ")
+      H.a ! A.href "?action=create" $ "Create it?"
+
+renderViewTag :: WikiEnv -> T.Text -> [(T.Text, PageMeta)] -> H.Html
+renderViewTag env tag metas =
+  renderTagTemplate env tag $ do
+    H.h1 (H.toHtml $ "#" <> tag)
+    H.ul $ do
+      forM_ metas $ \(name, meta) -> do
+        H.li $ renderPageLink env name
