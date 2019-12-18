@@ -1,4 +1,4 @@
-module Indigo.Service.Repo.FileSystem (
+module Indigo.Service.Repo.Impl.FileSystem (
   withHandle
 ) where
 

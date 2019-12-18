@@ -24,7 +24,7 @@ meta = lens _meta $ \p m -> p { _meta = m }
 
 newtype PageMeta = PageMeta {
   _tags :: [T.Text]
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON PageMeta where
   toJSON = genericToJSON jsonConfig

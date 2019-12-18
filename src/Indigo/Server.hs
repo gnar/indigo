@@ -13,9 +13,9 @@ import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
-import qualified Indigo.Service.Index as Index
+import qualified Indigo.Service.Indexer as Indexer
 import qualified Indigo.Service.Repo as Repo
-import qualified Indigo.Service.Repo.FileSystem as RepoFileSystem
+import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import Control.Monad (forM)
 
 import Indigo.Tags (generate)
@@ -57,10 +57,10 @@ server env repo = pages env repo :<|> serveDirectoryWebApp (env ^. staticDir)
 
 main :: IO ()
 main =
-  RepoFileSystem.withHandle (env ^. pageDir) $ \repo -> do
-    Index.withHandle $ \index -> do
-      Index.rebuild index repo
-      Index.dump index
+  RepoFileSystem.withHandle (env ^. pageDir) $ \repo ->
+    Indexer.withHandle $ \index -> do
+      Indexer.rebuild index repo
+      Indexer.dump index
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo)
   where
     env = WikiEnv {_host = "http://localhost:8080", _pageDir = "pages", _staticDir = "static"}

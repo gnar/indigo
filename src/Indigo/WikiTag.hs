@@ -33,7 +33,7 @@ renderPageLink :: WikiEnv -> T.Text -> T.Text
 renderPageLink env page = env ^. host <> "/pages/" <> page
 
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
-renderWikiTag _ (WikiError tokens) = "[" <> T.intercalate "|" tokens <> "]"
+renderWikiTag _ (WikiError tokens) = "{" <> T.intercalate "|" tokens <> "}"
 renderWikiTag _ (WikiHashTag _) = ""
 renderWikiTag e (WikiPageLink page text) = mconcat ["<a href=\"", renderPageLink e page, "\">", text, "</a>"]
 
