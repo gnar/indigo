@@ -24,7 +24,9 @@ instance FromHttpApiData PageAction where
 data PageForm = PageForm { text :: T.Text
                          , name :: T.Text } deriving (Eq, Show, Generic, FromForm)
 
-type FrontendApi = "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
+type FrontendApi = "pages" :> Get '[HTML] Html
+              :<|> "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
               :<|> "pages" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
 
+              :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html

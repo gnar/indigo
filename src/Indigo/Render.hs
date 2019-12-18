@@ -1,8 +1,10 @@
 module Indigo.Render (
-    renderViewPage
+    renderListPages
+  , renderViewPage
   , renderEditPage
   , renderMissingPage
-  , renderViewTag
+  , renderListTags
+  , renderGetTag
 ) where
 
 import Control.Monad (forM_)
@@ -25,7 +27,7 @@ renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml
 renderTagBadge :: WikiEnv -> T.Text -> H.Html
 renderTagBadge env tag = H.a ! A.href (H.toValue $ tagUrl env tag) $ badge
   where
-    badge = H.span ! A.class_ "badge badge-secondary" $ H.toHtml tag
+    badge = H.span ! A.class_ "badge badge-secondary" $ H.toHtml ("#" <> tag)
 
 renderTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html -> H.Html
 renderTemplate env title menus contents =
@@ -44,7 +46,9 @@ renderTemplate env title menus contents =
         H.nav ! A.class_ "navbar navbar-expand-lg navbar-light bg-light" $ do
           H.div ! A.class_ "collapse navbar-collapse" ! A.id "navbarSupportedContent" $ do
             H.ul ! A.class_ "navbar-nav mr-auto" $ do
-              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env "Hauptseite") $ "Home"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env (env ^. mainPage)) $ "Main"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pagesUrl env) $ "Pages"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ tagsUrl env) $ "Tags"
               menus
             H.form ! A.class_ "form-inline my-2 my-lg-0" $ do
               H.input ! A.class_ "form-control mr-sm-2" ! A.type_ "search" ! A.placeholder "Search"
@@ -81,6 +85,14 @@ pageHtml env page =
       Left err -> undefined
       Right doc -> doc
 
+renderListPages :: WikiEnv -> [T.Text] -> H.Html
+renderListPages env names =
+  renderTagTemplate env "Tags" $ do
+    H.h1 "Pages"
+    H.ul $ do
+      forM_ names $ \name -> do
+        H.li $ renderPageLink env name
+
 renderViewPage :: WikiEnv -> Page -> H.Html
 renderViewPage env page =
   renderPageTemplate env (page ^. name) $ do
@@ -109,10 +121,18 @@ renderMissingPage env name =
       H.toHtml ("Page " <> name <> " does not exist. ")
       H.a ! A.href "?action=create" $ "Create it?"
 
-renderViewTag :: WikiEnv -> T.Text -> [(T.Text, PageMeta)] -> H.Html
-renderViewTag env tag metas =
+renderGetTag :: WikiEnv -> T.Text -> [(T.Text, PageMeta)] -> H.Html
+renderGetTag env tag metas =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)
     H.ul $ do
       forM_ metas $ \(name, meta) -> do
         H.li $ renderPageLink env name
+
+renderListTags :: WikiEnv -> [T.Text] -> H.Html
+renderListTags env tags =
+  renderTagTemplate env "Tags" $ do
+    H.h1 "Tags"
+    H.ul $ do
+      forM_ tags $ \tag -> do
+        H.li $ renderTagBadge env tag

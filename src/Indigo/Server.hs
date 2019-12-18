@@ -22,12 +22,17 @@ import Indigo.Tags (generate)
 import Data.Maybe (fromJust)
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = getPage :<|> postPage :<|> getTag
+frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :<|> getTag
   where
+    listPages :: Handler Markup
+    listPages = do
+      names <- liftIO $ Indexer.findAllNames indexer
+      pure $ renderListPages env names
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
     getPage name (Just PageCreate) = do
       liftIO $ Repo.pageIndex repo >>= print
       page <- liftIO $ Repo.loadOrCreatePage repo name
+      liftIO $ Indexer.update indexer name (page ^. meta)
       pure $ renderViewPage env page
     getPage name (Just PageView) = do
       page <- liftIO $ Repo.loadPage repo name
@@ -40,7 +45,8 @@ frontend env repo indexer = getPage :<|> postPage :<|> getTag
         Just page -> pure $ renderEditPage env page
         Nothing -> pure $ renderMissingPage env name
     getPage name (Just PageDelete) = do
-      () <- liftIO $ Repo.deletePage repo name
+      liftIO $ Repo.deletePage repo name
+      liftIO $ Indexer.remove indexer name
       pure (renderMissingPage env name)
     getPage name _ = getPage name (Just PageView)
     postPage :: T.Text -> PageForm -> Handler Markup
@@ -49,10 +55,14 @@ frontend env repo indexer = getPage :<|> postPage :<|> getTag
       let page' = page {Page._text = Api.text form}
       liftIO $ Repo.updatePage repo page'
       pure $ renderViewPage env page'
+    listTags :: Handler Markup
+    listTags = do
+      tags <- liftIO $ Indexer.findAllTags indexer
+      pure $ renderListTags env tags
     getTag :: T.Text -> Handler Markup
     getTag tag = do
       res <- liftIO $ Indexer.findByTag indexer tag
-      pure $ renderViewTag env tag res
+      pure $ renderGetTag env tag res
 
 type Routes = FrontendApi :<|> "static" :> Raw
 
@@ -67,4 +77,8 @@ main =
       Indexer.dump indexer
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)
   where
-    env = WikiEnv {_host = "http://localhost:8080", _pageDir = "pages", _staticDir = "static"}
+    env = WikiEnv { _host = "http://localhost:8080"
+                  , _pageDir = "pages"
+                  , _staticDir = "static"
+                  , _mainPage = "Hauptseite"
+                  }
