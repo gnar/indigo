@@ -39,13 +39,13 @@ findByTag :: T.Text -> Index -> [(T.Text, PageMeta)]
 findByTag tag Index{..} = [(name, cache ! name) | name <- fromMaybe [] (byTag !? tag)]
 
 update :: T.Text -> PageMeta -> Index -> Index
-update name meta index@Index{..} = index'
-  where
-    index' = index {
-      cache = Map.insert name meta cache,
-      byTag = foldr (Map.alter alterTags) byTag (meta ^. tags)
+update name meta index =
+  index'
+    { cache = Map.insert name meta (cache index')
+    , byTag = foldr (Map.alter alterTags) (byTag index') (meta ^. tags)
     }
-
+  where
+    index' = remove name index
     alterTags Nothing = Just [name]
     alterTags (Just tags) = Just (name : filter (/= name) tags)
 

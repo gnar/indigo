@@ -18,7 +18,6 @@ import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import Control.Monad (forM)
 
-import Indigo.Tags (generate)
 import Data.Maybe (fromJust)
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
@@ -30,7 +29,6 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
       pure $ renderListPages env names
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
     getPage name (Just PageCreate) = do
-      liftIO $ Repo.pageIndex repo >>= print
       page <- liftIO $ Repo.loadOrCreatePage repo name
       liftIO $ Indexer.update indexer name (page ^. meta)
       pure $ renderViewPage env page
@@ -45,15 +43,22 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
         Just page -> pure $ renderEditPage env page
         Nothing -> pure $ renderMissingPage env name
     getPage name (Just PageDelete) = do
-      liftIO $ Repo.deletePage repo name
-      liftIO $ Indexer.remove indexer name
+      liftIO $ do
+        Repo.deletePage repo name
+        Indexer.remove indexer name
       pure (renderMissingPage env name)
     getPage name _ = getPage name (Just PageView)
     postPage :: T.Text -> PageForm -> Handler Markup
     postPage name form = do
       page <- liftIO $ Repo.loadOrCreatePage repo name
-      let page' = page {Page._text = Api.text form}
-      liftIO $ Repo.updatePage repo page'
+      let tags' = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
+          meta' = (page ^. Page.meta) { Page._tags = tags' }
+          page' = page { _text = Api.text form
+                       , _meta = meta'
+                       }
+      liftIO $ do
+        Repo.updatePage repo page'
+        Indexer.update indexer name meta'
       pure $ renderViewPage env page'
     listTags :: Handler Markup
     listTags = do
@@ -74,7 +79,6 @@ main =
   RepoFileSystem.withHandle (env ^. pageDir) $ \repo ->
     Indexer.withHandle $ \indexer -> do
       Indexer.rebuild indexer repo
-      Indexer.dump indexer
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)
   where
     env = WikiEnv { _host = "http://localhost:8080"

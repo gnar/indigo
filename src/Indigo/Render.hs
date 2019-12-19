@@ -27,7 +27,7 @@ renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml
 renderTagBadge :: WikiEnv -> T.Text -> H.Html
 renderTagBadge env tag = H.a ! A.href (H.toValue $ tagUrl env tag) $ badge
   where
-    badge = H.span ! A.class_ "badge badge-secondary" $ H.toHtml ("#" <> tag)
+    badge = H.span ! A.class_ "badge badge-info" $ H.toHtml ("#" <> tag)
 
 renderTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html -> H.Html
 renderTemplate env title menus contents =
@@ -108,7 +108,12 @@ renderEditPage env page =
     H.h1 (H.toHtml (page ^. name))
     H.form ! A.action "#" ! A.method "post" $ do
       H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. name)
-      H.div ! A.class_ "form-group" $
+      H.div ! A.class_ "form-group" $ do
+        "Tags"
+        let tagsText = T.intercalate "," (page ^. meta . tags)
+        H.textarea ! A.name "tags" ! A.class_ "form-control" $ H.toHtml tagsText
+      H.div ! A.class_ "form-group" $ do
+        "Document"
         H.textarea ! A.name "text" ! A.class_ "form-control" ! A.rows "25" $ H.toHtml (page ^. text)
       H.div ! A.class_ "form-group" $
         H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
