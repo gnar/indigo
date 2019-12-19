@@ -1,27 +1,31 @@
-module Indigo.Server ( main ) where
-
-import Control.Monad.IO.Class
-import qualified Data.Text as T
+module Indigo.Server 
+  ( main 
+  ) where
 
 import Control.Lens ((^.))
+import Control.Monad (forM_)
+import Control.Monad.IO.Class
+import qualified Data.Text as T
+import Data.Maybe (fromJust)
 
 import Servant
+import Servant.Multipart
+import Network.HTTP.Client hiding (Proxy)
+import Network.HTTP.Client.MultipartFormData
 import Text.Blaze.Html5 (Markup, toHtml)
 import Network.Wai.Handler.Warp (run)
+import qualified Data.ByteString.Lazy as LBS
 
 import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
-import qualified Indigo.Service.Indexer as Indexer
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
-import Control.Monad (forM)
-
-import Data.Maybe (fromJust)
+import qualified Indigo.Service.Indexer as Indexer
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :<|> getTag
+frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :<|> getTag :<|> upload
   where
     listPages :: Handler Markup
     listPages = do
@@ -68,6 +72,20 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
     getTag tag = do
       res <- liftIO $ Indexer.findByTag indexer tag
       pure $ renderGetTag env tag res
+
+upload :: MultipartData Mem -> Handler Markup
+upload multipartData = do
+  liftIO $ do
+    putStrLn "Inputs:"
+    forM_ (inputs multipartData) $ \input ->
+      putStrLn $ "  " ++ show (iName input)
+            ++ " -> " ++ show (iValue input)
+
+    forM_ (files multipartData) $ \file -> do
+      let content = fdPayload file
+      putStrLn $ "Content of " ++ show (fdFileName file)
+      LBS.putStr content
+  pure $ "hahaha"
 
 type Routes = FrontendApi :<|> "static" :> Raw
 

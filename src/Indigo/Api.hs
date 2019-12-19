@@ -9,6 +9,7 @@ import GHC.Generics
 import Data.Text as T
 
 import Servant
+import Servant.Multipart
 import Servant.HTML.Blaze (HTML)
 import Web.FormUrlEncoded (FromForm)
 import Text.Blaze.Html (Html)
@@ -31,3 +32,5 @@ type FrontendApi = "pages" :> Get '[HTML] Html
 
               :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html
+
+              :<|> "files" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html

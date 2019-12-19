@@ -29,18 +29,6 @@ parseWikiTag =
     pureWikiError tokens = pure $ WikiError tokens
     pureWikiPageLink page text = pure $ WikiPageLink page text
 
-pageUrl :: WikiEnv -> T.Text -> T.Text
-pageUrl env name =  mconcat [env ^. host, "/pages/", name]
-
-pagesUrl :: WikiEnv -> T.Text
-pagesUrl env =  mconcat [env ^. host, "/pages"]
-
-tagUrl :: WikiEnv -> T.Text -> T.Text
-tagUrl env tag =  mconcat [env ^. host, "/tags/", tag]
-
-tagsUrl :: WikiEnv -> T.Text
-tagsUrl env =  mconcat [env ^. host, "/tags"]
-
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
 renderWikiTag _ (WikiError tokens) = "{" <> T.intercalate "|" tokens <> "}"
 renderWikiTag _ (WikiHashTag _) = ""
