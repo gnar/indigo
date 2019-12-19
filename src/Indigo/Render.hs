@@ -74,7 +74,7 @@ renderPageTemplate env title contents = renderTemplate env title thisPageMenu co
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: WikiEnv -> Page -> H.Html
+pageHtml :: WikiEnv -> Doc -> H.Html
 pageHtml env page =
   let
       rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
@@ -93,21 +93,21 @@ renderListPages env names =
       forM_ names $ \name -> do
         H.li $ renderPageLink env name
 
-renderViewPage :: WikiEnv -> Page -> H.Html
+renderViewPage :: WikiEnv -> Doc -> H.Html
 renderViewPage env page =
-  renderPageTemplate env (page ^. name) $ do
+  renderPageTemplate env (page ^. meta. name) $ do
     H.p $ forM_ (page ^. meta . tags) $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
       pageHtml env page
 
-renderEditPage :: WikiEnv -> Page -> H.Html
+renderEditPage :: WikiEnv -> Doc -> H.Html
 renderEditPage env page =
-  renderPageTemplate env (page ^. name) $ do
-    H.h1 (H.toHtml (page ^. name))
+  renderPageTemplate env (page ^. meta . name) $ do
+    H.h1 (H.toHtml (page ^. meta . name))
     H.form ! A.action "#" ! A.method "post" $ do
-      H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. name)
+      H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. meta . name)
       H.div ! A.class_ "form-group" $ do
         "Tags"
         let tagsText = T.intercalate "," (page ^. meta . tags)
@@ -118,21 +118,21 @@ renderEditPage env page =
       H.div ! A.class_ "form-group" $
         H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
-renderMissingPage :: WikiEnv -> T.Text -> H.Html
+renderMissingPage :: WikiEnv -> DocName -> H.Html
 renderMissingPage env name =
   renderPageTemplate env name $ do
     H.h1 (H.toHtml name)
     H.p $ do
-      H.toHtml ("Page " <> name <> " does not exist. ")
+      H.toHtml ("Document " <> name <> " does not exist. ")
       H.a ! A.href "?action=create" $ "Create it?"
 
-renderGetTag :: WikiEnv -> T.Text -> [(T.Text, PageMeta)] -> H.Html
+renderGetTag :: WikiEnv -> T.Text -> [DocMeta] -> H.Html
 renderGetTag env tag metas =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)
     H.ul $ do
-      forM_ metas $ \(name, meta) -> do
-        H.li $ renderPageLink env name
+      forM_ metas $ \meta -> do
+        H.li $ renderPageLink env (meta ^. name)
 
 renderListTags :: WikiEnv -> [T.Text] -> H.Html
 renderListTags env tags =

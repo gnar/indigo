@@ -1,47 +1,47 @@
 module Indigo.Page where
 
-import GHC.Generics
 import qualified Data.Text as T
 import Control.Lens (Lens', lens)
-import Data.Aeson
 
 import Indigo.Config
 
-data Page = Page {
-  _name :: T.Text,
-  _text :: T.Text,
-  _meta :: PageMeta
-} deriving (Generic, Show)
+type DocName = T.Text
 
-name :: Lens' Page T.Text
-name = lens _name $ \p n -> p { _name = n }
+data DocType = DocPage | DocFile deriving (Eq, Show)
 
-text :: Lens' Page T.Text
-text = lens _text $ \p t -> p { _text = t }
+data DocMeta = DocMeta
+  { _name :: DocName
+  , _type :: DocType
+  , _tags :: [T.Text]
+  } deriving (Show)
 
-meta :: Lens' Page PageMeta
-meta = lens _meta $ \p m -> p { _meta = m }
+data Doc =
+    Page { _text :: T.Text
+         , _meta :: DocMeta
+         }
+  | File { _file :: T.Text
+         , _meta :: DocMeta
+         }
+  deriving (Show)
 
-newtype PageMeta = PageMeta {
-  _tags :: [T.Text]
-} deriving (Generic, Show, Eq)
+text :: Lens' Doc T.Text
+text = lens _text $ \d t -> d { _text = t }
 
-instance ToJSON PageMeta where
-  toJSON = genericToJSON jsonConfig
+meta :: Lens' Doc DocMeta
+meta = lens _meta $ \d m -> d { _meta = m }
 
-instance FromJSON PageMeta where
-  parseJSON = genericParseJSON jsonConfig
+name :: Lens' DocMeta DocName
+name = lens _name $ \d n -> d { _name = n }
 
-tags :: Lens' PageMeta [T.Text]
+tags :: Lens' DocMeta [T.Text]
 tags = lens _tags $ \m t -> m { _tags = t }
 
-newPage :: T.Text -> Page
-newPage name = Page {
-  _name = name,
-  _text = T.unlines [
-    "# " <> name,
-    "",
-    "No contents."
-  ],
-  _meta = PageMeta []
-}
+newPage :: T.Text -> Doc
+newPage name = Page
+  { _text = T.unlines ["# " <> name, "", "No contents."]
+  , _meta = DocMeta
+       { _name = name
+       , _type = DocPage
+       , _tags = []
+       }
+  }

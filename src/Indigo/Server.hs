@@ -33,36 +33,36 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
       pure $ renderListPages env names
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
     getPage name (Just PageCreate) = do
-      page <- liftIO $ Repo.loadOrCreatePage repo name
-      liftIO $ Indexer.update indexer name (page ^. meta)
+      page <- liftIO $ Repo.loadOrCreateDoc repo name
+      liftIO $ Indexer.update indexer (page ^. meta)
       pure $ renderViewPage env page
     getPage name (Just PageView) = do
-      page <- liftIO $ Repo.loadPage repo name
+      page <- liftIO $ Repo.loadDoc repo name
       case page of
         Just page -> pure $ renderViewPage env page
         Nothing -> pure $ renderMissingPage env name
     getPage name (Just PageEdit) = do
-      page <- liftIO $ Repo.loadPage repo name
+      page <- liftIO $ Repo.loadDoc repo name
       case page of
         Just page -> pure $ renderEditPage env page
         Nothing -> pure $ renderMissingPage env name
     getPage name (Just PageDelete) = do
       liftIO $ do
-        Repo.deletePage repo name
+        Repo.deleteDoc repo name
         Indexer.remove indexer name
       pure (renderMissingPage env name)
     getPage name _ = getPage name (Just PageView)
     postPage :: T.Text -> PageForm -> Handler Markup
     postPage name form = do
-      page <- liftIO $ Repo.loadOrCreatePage repo name
+      page <- liftIO $ Repo.loadOrCreateDoc repo name
       let tags' = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
           meta' = (page ^. Page.meta) { Page._tags = tags' }
           page' = page { _text = Api.text form
                        , _meta = meta'
                        }
       liftIO $ do
-        Repo.updatePage repo page'
-        Indexer.update indexer name meta'
+        Repo.saveDoc repo page'
+        Indexer.update indexer meta'
       pure $ renderViewPage env page'
     listTags :: Handler Markup
     listTags = do

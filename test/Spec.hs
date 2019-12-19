@@ -14,7 +14,7 @@ testIndex =
     let clear = Index.clear
         meta1 = PageMeta ["tag1", "tag2"]
         meta2 = PageMeta ["tag1", "tag3"]
-        indexA = Index.update "a1" meta1 $ Index.update "a2" meta2 Index.clear
+        indexA = Index.update "a1" meta1 $ Index.update "a2" meta2 Index.empty
         indexB = Index.remove "a1" indexA
     describe "clearIndex" $ do
       it "findAllTags" $ Index.findAllTags clear `shouldBe` []

@@ -6,12 +6,12 @@ import qualified Data.Text as T
 import Indigo.Page
 
 data Handle = Handle {
-    pageIndex :: IO [T.Text]
-  , loadMeta :: T.Text -> IO (Maybe PageMeta)
-  , loadPage :: T.Text -> IO (Maybe Page)
-  , updatePage :: Page -> IO Page
-  , deletePage :: T.Text -> IO ()
+    listDocs :: IO [DocName]
+  , loadMeta :: DocName -> IO (Maybe DocMeta)
+  , loadDoc :: DocName -> IO (Maybe Doc)
+  , saveDoc :: Doc -> IO Doc
+  , deleteDoc :: DocName -> IO ()
 }
 
-loadOrCreatePage :: Handle -> T.Text -> IO Page
-loadOrCreatePage repo name = loadPage repo name >>= maybe (updatePage repo $ newPage name) pure
+loadOrCreateDoc :: Handle -> DocName -> IO Doc
+loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newPage name) pure
