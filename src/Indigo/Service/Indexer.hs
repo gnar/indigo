@@ -56,8 +56,8 @@ rebuild index repo = do
   T.putStrLn "Rebuilding index..."
   clear index
   forM_ names $ \name -> do
-    page <- fromJust <$> Repo.loadPage repo name
-    update index name (page ^. meta)
+    meta <- fromJust <$> Repo.loadMeta repo name
+    update index name meta
     T.putStrLn $ "Updated '" <> name <> "'"
 
 dump :: Handle -> IO ()

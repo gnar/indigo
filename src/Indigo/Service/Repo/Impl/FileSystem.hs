@@ -20,6 +20,7 @@ newHandle :: FilePath -> Repo.Handle
 newHandle path = Repo.Handle {
   pageIndex = pageIndex' path,
   loadPage = loadPage' path,
+  loadMeta = loadMeta' path,
   updatePage = updatePage' path,
   deletePage = deletePage' path
 }
@@ -38,18 +39,31 @@ pageIndex' path = do
         (name, ".json") -> Just name
         _ -> Nothing
 
+existsPage :: FilePath -> T.Text -> IO Bool
+existsPage path name = doesFileExist $ pageTextFile path name
+
+loadMeta' :: FilePath -> T.Text -> IO (Maybe PageMeta)
+loadMeta' path name = do
+  exists <- existsPage path name
+  if exists
+    then do
+      meta <- fromMaybe (PageMeta []) . decode . BL.fromStrict <$> B.readFile metaFile
+      pure $ Just meta
+    else pure Nothing
+  where
+    metaFile = pageMetaFile path name
+
 loadPage' :: FilePath -> T.Text -> IO (Maybe Page)
 loadPage' path name = do
-  exists <- doesFileExist textFile
+  exists <- existsPage path name
   if exists
     then do
       text <- T.decodeUtf8 <$> B.readFile textFile
-      meta <- fromMaybe (PageMeta []) . decode . BL.fromStrict <$> B.readFile metaFile
+      meta <- fromMaybe (PageMeta []) <$> loadMeta' path name
       pure $ Just $ Page name text meta
     else pure Nothing
   where
     textFile = pageTextFile path name
-    metaFile = pageMetaFile path name
 
 updatePage' :: FilePath -> Page -> IO Page
 updatePage' path page = do

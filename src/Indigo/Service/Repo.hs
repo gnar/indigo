@@ -7,6 +7,7 @@ import Indigo.Page
 
 data Handle = Handle {
     pageIndex :: IO [T.Text]
+  , loadMeta :: T.Text -> IO (Maybe PageMeta)
   , loadPage :: T.Text -> IO (Maybe Page)
   , updatePage :: Page -> IO Page
   , deletePage :: T.Text -> IO ()
