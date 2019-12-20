@@ -95,16 +95,23 @@ renderListPages env names =
         H.li $ renderPageLink env name
 
 renderViewPage :: WikiEnv -> Doc -> H.Html
-renderViewPage env page =
-  renderPageTemplate env (page ^. meta. name) $ do
+renderViewPage env page@DocPage{} =
+  renderPageTemplate env (page ^. meta . name) $ do
     H.p $ forM_ (page ^. meta . tags) $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
       pageHtml env page
+renderViewPage env image@DocImage {} =
+  renderPageTemplate env (image ^. meta . name) $ do
+    H.p $ forM_ (image ^. meta . tags) $ \tag -> do
+      renderTagBadge env tag
+      H.preEscapedText "&nbsp;"
+    H.h1 $ H.toHtml (image ^. meta . name)
+    H.p $ H.toHtml $ "This document is an image file: " <> image ^. meta . file
 
 renderEditPage :: WikiEnv -> Doc -> H.Html
-renderEditPage env page =
+renderEditPage env page@DocPage{} =
   renderPageTemplate env (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))
     H.form ! A.action "#" ! A.method "post" $ do

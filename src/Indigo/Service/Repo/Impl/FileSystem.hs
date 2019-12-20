@@ -10,73 +10,69 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import System.Directory
-import System.FilePath (takeExtension, dropExtension)
-import Data.Maybe (fromMaybe, catMaybes, fromJust)
+import System.FilePath
+import Data.Maybe (fromMaybe, catMaybes, fromJust, isJust, mapMaybe)
 import Control.Lens ((^.))
-import Control.Monad (guard)
+import Control.Monad (guard, forM_, when, unless)
 import GHC.Generics
 import Data.Aeson
 
 withHandle :: FilePath -> (Repo.Handle -> IO a) -> IO a
-withHandle path action = action (newHandle path)
+withHandle path action = do
+  let repo = newHandle path
+  initialize path repo
+  action repo
+
+metaPath path name = path </> "." <> T.unpack name <> ".json"
+filePath path meta = path </> (meta ^. file)
+
+existsMetaFile path name = doesFileExist $ metaPath path name
+saveMetaFile path meta = B.writeFile (metaPath path (meta ^. name)) (BL.toStrict . encode . toMetaDto $ meta)
+loadMetaFile path name = fromMetaDto name . fromJust . decode . BL.fromStrict <$> B.readFile (metaPath path name)
+
+saveFile path meta text = B.writeFile (path </> meta ^. file) (T.encodeUtf8 text)
+loadFile path meta = T.decodeUtf8 <$> B.readFile (path </> meta ^. file)
 
 newHandle :: FilePath -> Repo.Handle
 newHandle path = Repo.Handle listDocs loadMeta loadDoc saveDoc deleteDoc
   where
-    metaFilePath name = path <> "/" <> T.unpack name <> ".json"
-    pageFilePath name = path <> "/" <> T.unpack name <> ".md"
-
-    existsDoc :: DocName -> IO Bool
-    existsDoc name = doesFileExist $ metaFilePath name
-
     listDocs :: IO [DocName]
-    listDocs = do
-        listing <- listDirectory path
-        pure $ catMaybes $ extractDocName <$> listing
+    listDocs = mapMaybe extractName <$> listDirectory path
       where
-        extractDocName f
-          | takeExtension f == ".json" = Just . T.pack $ dropExtension f
-          | otherwise = Nothing
-
+        extractName :: FilePath -> Maybe DocName
+        extractName f =
+          case (dropExtension f, takeExtension f) of
+            ('.':name, ".json")
+              | isValidDocName name -> Just $ T.pack name
+            _ -> Nothing
     loadMeta :: T.Text -> IO (Maybe DocMeta)
     loadMeta name = do
-      exists <- existsDoc name
+      exists <- existsMetaFile path name
       if exists
-        then do
-          meta <- fromMetaDto name . fromJust . decode . BL.fromStrict <$> B.readFile metaFile
-          pure $ Just meta
+        then Just <$> loadMetaFile path name
         else pure Nothing
-      where
-        metaFile = metaFilePath name
-
     loadDoc :: T.Text -> IO (Maybe Doc)
     loadDoc name = do
-      exists <- existsDoc name
+      exists <- existsMetaFile path name
       if exists
-        then do
-          meta <- fromJust <$> loadMeta name
-          text <- T.decodeUtf8 <$> B.readFile (pageFilePath name)
-          pure $ case _type meta of
-            DocTypePage -> Just $ DocPage text meta
-            DocTypeFile -> Nothing
+        then Just <$> (loadMetaFile path name >>= load)
         else pure Nothing
-
-    saveDoc :: Doc -> IO Doc
-    saveDoc doc = do
-        B.writeFile textFile $ T.encodeUtf8 (doc ^. text)
-        B.writeFile metaFile $ BL.toStrict $ encode $ toMetaDto $ doc ^. meta
-        pure doc
       where
-        textFile = pageFilePath (doc ^. meta . name)
-        metaFile = metaFilePath (doc ^. meta . name)
-
+        load :: DocMeta -> IO Doc
+        load meta@DocMeta {_type = DocTypePage} = DocPage <$> loadFile path meta <*> pure meta
+        load meta@DocMeta {_type = DocTypeImage} = DocImage <$> pure meta
+    saveDoc :: Doc -> IO Doc
+    saveDoc page@DocPage {} = do
+      saveMetaFile path (page ^. meta)
+      saveFile path (page ^. meta) (page ^. text)
+      pure page
     deleteDoc :: T.Text -> IO ()
     deleteDoc name = do
-        removeFile textFile
-        removeFile metaFile
-      where
-        textFile = pageFilePath name
-        metaFile = metaFilePath name
+      exists <- existsMetaFile path name
+      when exists $ do
+        meta <- loadMetaFile path name
+        removeFile (meta ^. file)
+        removeFile (metaPath path name)
 
 ---
 
@@ -85,8 +81,9 @@ jsonConfig = defaultOptions { fieldLabelModifier = fieldLabelModifier }
     fieldLabelModifier ('d':'t':'o':str) = T.unpack . T.toLower . T.pack $ str
 
 data MetaDto = MetaDto
-  { dtoTags :: [T.Text]
-  , dtoType :: T.Text
+  { dtoType :: T.Text
+  , dtoFile :: FilePath
+  , dtoTags :: [T.Text]
   } deriving (Generic, Eq, Show)
 
 instance ToJSON MetaDto where toJSON = genericToJSON jsonConfig
@@ -95,18 +92,45 @@ instance FromJSON MetaDto where parseJSON = genericParseJSON jsonConfig
 fromMetaDto name metaDto =
   DocMeta
     { _name = name
+    , _file = dtoFile metaDto
     , _tags = dtoTags metaDto
     , _type = fromTypeDto $ dtoType metaDto
     }
   where
     fromTypeDto "page" = DocTypePage
-    fromTypeDto "file" = DocTypeFile
+    fromTypeDto "image" = DocTypeImage
 
 toMetaDto meta =
   MetaDto
     { dtoType = toTypeDto $ _type meta
     , dtoTags = meta ^. tags
+    , dtoFile = meta ^. file
     }
   where
     toTypeDto DocTypePage = "page"
-    toTypeDto DocTypeFile = "file"
+    toTypeDto DocTypeImage = "image"
+
+---
+
+initialize :: FilePath -> Repo.Handle -> IO ()
+initialize path repo = do
+  putStrLn "Initializing document repository..."
+
+  let scan f
+          | isValidDocName name = Just (f, T.pack name, takeExtension f)
+          | otherwise = Nothing
+        where name = dropExtension f
+
+      defaultMeta f name ".md" = Just $ DocMeta name f DocTypePage []
+      defaultMeta f name ".png" = Just $ DocMeta name f DocTypeImage []
+      defaultMeta _ _ _ = Nothing
+
+  -- Find markdown files without metadata, and add metadata for them.
+  names <- mapMaybe scan <$> listDirectory path
+  forM_ names $ \(f, name, ext) -> do
+    exists <- existsMetaFile path name
+    unless exists $ do
+      let meta = defaultMeta f name ext
+      case meta of
+        Just meta -> saveMetaFile path meta
+        Nothing -> mempty
