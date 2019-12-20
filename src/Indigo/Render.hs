@@ -17,6 +17,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 
 import Text.Pandoc (ReaderOptions(..), WriterOptions(..), readMarkdown, writeHtml5, githubMarkdownExtensions, runPure, def)
 
+import qualified Indigo.Api as Api
 import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
@@ -74,7 +75,7 @@ renderPageTemplate env title contents = renderTemplate env title thisPageMenu co
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: WikiEnv -> Doc -> H.Html
+pageHtml :: WikiEnv -> Document -> H.Html
 pageHtml env page =
   let
       rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
@@ -93,7 +94,7 @@ renderListPages env names =
       forM_ names $ \name -> do
         H.li $ renderPageLink env name
 
-renderViewPage :: WikiEnv -> Doc -> H.Html
+renderViewPage :: WikiEnv -> Document -> H.Html
 renderViewPage env page =
   renderPageTemplate env (page ^. meta. name) $ do
     H.p $ forM_ (page ^. meta . tags) $ \tag -> do
@@ -102,7 +103,7 @@ renderViewPage env page =
     H.p $
       pageHtml env page
 
-renderEditPage :: WikiEnv -> Doc -> H.Html
+renderEditPage :: WikiEnv -> Document -> H.Html
 renderEditPage env page =
   renderPageTemplate env (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))

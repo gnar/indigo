@@ -57,6 +57,8 @@ newHandle path = Repo.Handle {
   deleteDoc = deleteDoc' path
 }
 
+---
+
 metaFilePath path name = path <> "/" <> T.unpack name <> ".json" :: FilePath
 pageFilePath path name = path <> "/" <> T.unpack name <> ".md" :: FilePath
 
@@ -85,7 +87,7 @@ loadMeta' path name = do
   where
     metaFile = metaFilePath path name
 
-loadDoc' :: FilePath -> T.Text -> IO (Maybe Doc)
+loadDoc' :: FilePath -> T.Text -> IO (Maybe Document)
 loadDoc' path name = do
   exists <- existsDoc path name
   if exists
@@ -97,7 +99,7 @@ loadDoc' path name = do
         DocFile -> Nothing
     else pure Nothing
 
-saveDoc' :: FilePath -> Doc -> IO Doc
+saveDoc' :: FilePath -> Document -> IO Document
 saveDoc' path doc = do
     B.writeFile textFile $ T.encodeUtf8 (doc ^. text)
     B.writeFile metaFile $ BL.toStrict $ encode $ toMetaDto $ doc ^. meta

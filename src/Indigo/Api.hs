@@ -1,7 +1,12 @@
-module Indigo.Api (
-  PageAction(..),
-  PageForm(..),
-  FrontendApi
+module Indigo.Api
+  ( PageAction(..)
+  , PageForm(..)
+  , FrontendApi
+
+  , linkGetPages
+  , linkGetPage
+  , linkGetTags
+  , linkGetTag
 ) where
 
 import Data.Aeson
@@ -22,15 +27,23 @@ instance FromHttpApiData PageAction where
   parseQueryParam "edit" = Right PageEdit
   parseQueryParam "delete" = Right PageDelete
 
+instance ToHttpApiData PageAction where
+  toQueryParam PageCreate = "create"
+  toQueryParam PageView = "view"
+  toQueryParam PageEdit = "edit"
+  toQueryParam PageDelete = "delete"
+
 data PageForm = PageForm { text :: T.Text
                          , name :: T.Text
                          , tags :: T.Text } deriving (Eq, Show, Generic, FromForm)
 
-type FrontendApi = "pages" :> Get '[HTML] Html
-              :<|> "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
-              :<|> "pages" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
+type FrontendApi = "docs" :> Get '[HTML] Html
+              :<|> "docs" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
+              :<|> "docs" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
 
               :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html
 
               :<|> "files" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
+
+linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)

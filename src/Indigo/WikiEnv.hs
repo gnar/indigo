@@ -10,11 +10,13 @@ module Indigo.WikiEnv (
   , tagsUrl
 ) where
 
-import Control.Lens ((^.))
+import Control.Lens ((^.), Lens', lens)
 import qualified Data.Text as T
-import Control.Lens (Lens', lens)
 
 import Indigo.Config
+import qualified Indigo.Api as Api
+import Servant.Links (Link, linkURI)
+import Network.URI (URI, uriToString, uriIsRelative, uriIsAbsolute)
 
 data WikiEnv = WikiEnv
   { _host :: T.Text
@@ -35,15 +37,10 @@ staticDir = lens _staticDir $ \e sd -> e { _staticDir = sd }
 mainPage :: Lens' WikiEnv T.Text
 mainPage = lens _mainPage $ \e h -> e { _mainPage = h}
 
-pageUrl :: WikiEnv -> T.Text -> T.Text
-pageUrl env name =  mconcat [env ^. host, "/pages/", name]
+linkUrl :: WikiEnv -> Link -> T.Text
+linkUrl env link = env ^. host <> "/" <> T.pack (uriToString id (linkURI link) "")
 
-pagesUrl :: WikiEnv -> T.Text
-pagesUrl env =  mconcat [env ^. host, "/pages"]
-
-tagUrl :: WikiEnv -> T.Text -> T.Text
-tagUrl env tag =  mconcat [env ^. host, "/tags/", tag]
-
-tagsUrl :: WikiEnv -> T.Text
-tagsUrl env =  mconcat [env ^. host, "/tags"]
-
+pageUrl    env name = linkUrl env $ Api.linkGetPage name Nothing
+pagesUrl   env      = linkUrl env   Api.linkGetPages
+tagUrl     env tag  = linkUrl env $ Api.linkGetTag tag
+tagsUrl    env      = linkUrl env   Api.linkGetTags

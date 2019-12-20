@@ -15,7 +15,7 @@ data DocMeta = DocMeta
   , _tags :: [T.Text]
   } deriving (Show)
 
-data Doc =
+data Document =
     Page { _text :: T.Text
          , _meta :: DocMeta
          }
@@ -24,10 +24,10 @@ data Doc =
          }
   deriving (Show)
 
-text :: Lens' Doc T.Text
+text :: Lens' Document T.Text
 text = lens _text $ \d t -> d { _text = t }
 
-meta :: Lens' Doc DocMeta
+meta :: Lens' Document DocMeta
 meta = lens _meta $ \d m -> d { _meta = m }
 
 name :: Lens' DocMeta DocName
@@ -36,7 +36,7 @@ name = lens _name $ \d n -> d { _name = n }
 tags :: Lens' DocMeta [T.Text]
 tags = lens _tags $ \m t -> m { _tags = t }
 
-newPage :: T.Text -> Doc
+newPage :: T.Text -> Document
 newPage name = Page
   { _text = T.unlines ["# " <> name, "", "No contents."]
   , _meta = DocMeta

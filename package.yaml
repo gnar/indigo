@@ -38,6 +38,7 @@ dependencies:
   - servant-multipart
   - http-api-data
   - http-client
+  - network-uri
   - filepath
   - directory
   - attoparsec
