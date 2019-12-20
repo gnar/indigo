@@ -8,10 +8,10 @@ import Indigo.Page
 data Handle = Handle {
     listDocs :: IO [DocName]
   , loadMeta :: DocName -> IO (Maybe DocMeta)
-  , loadDoc :: DocName -> IO (Maybe Document)
-  , saveDoc :: Document -> IO Document
+  , loadDoc :: DocName -> IO (Maybe Doc)
+  , saveDoc :: Doc -> IO Doc
   , deleteDoc :: DocName -> IO ()
 }
 
-loadOrCreateDoc :: Handle -> DocName -> IO Document
+loadOrCreateDoc :: Handle -> DocName -> IO Doc
 loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newPage name) pure

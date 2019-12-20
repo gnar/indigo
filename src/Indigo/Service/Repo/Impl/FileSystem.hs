@@ -10,16 +10,79 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import System.Directory
+import System.FilePath (takeExtension, dropExtension)
 import Data.Maybe (fromMaybe, catMaybes, fromJust)
 import Control.Lens ((^.))
 import Control.Monad (guard)
-import Data.List (isSuffixOf)
 import GHC.Generics
 import Data.Aeson
 
-jsonConfig = defaultOptions { fieldLabelModifier = fieldLabelModifier' }
+withHandle :: FilePath -> (Repo.Handle -> IO a) -> IO a
+withHandle path action = action (newHandle path)
+
+newHandle :: FilePath -> Repo.Handle
+newHandle path = Repo.Handle listDocs loadMeta loadDoc saveDoc deleteDoc
   where
-    fieldLabelModifier' ('d':'t':'o':str) = T.unpack . T.toLower . T.pack $ str
+    metaFilePath name = path <> "/" <> T.unpack name <> ".json"
+    pageFilePath name = path <> "/" <> T.unpack name <> ".md"
+
+    existsDoc :: DocName -> IO Bool
+    existsDoc name = doesFileExist $ metaFilePath name
+
+    listDocs :: IO [DocName]
+    listDocs = do
+        listing <- listDirectory path
+        pure $ catMaybes $ extractDocName <$> listing
+      where
+        extractDocName f
+          | takeExtension f == ".json" = Just . T.pack $ dropExtension f
+          | otherwise = Nothing
+
+    loadMeta :: T.Text -> IO (Maybe DocMeta)
+    loadMeta name = do
+      exists <- existsDoc name
+      if exists
+        then do
+          meta <- fromMetaDto name . fromJust . decode . BL.fromStrict <$> B.readFile metaFile
+          pure $ Just meta
+        else pure Nothing
+      where
+        metaFile = metaFilePath name
+
+    loadDoc :: T.Text -> IO (Maybe Doc)
+    loadDoc name = do
+      exists <- existsDoc name
+      if exists
+        then do
+          meta <- fromJust <$> loadMeta name
+          text <- T.decodeUtf8 <$> B.readFile (pageFilePath name)
+          pure $ case _type meta of
+            DocTypePage -> Just $ DocPage text meta
+            DocTypeFile -> Nothing
+        else pure Nothing
+
+    saveDoc :: Doc -> IO Doc
+    saveDoc doc = do
+        B.writeFile textFile $ T.encodeUtf8 (doc ^. text)
+        B.writeFile metaFile $ BL.toStrict $ encode $ toMetaDto $ doc ^. meta
+        pure doc
+      where
+        textFile = pageFilePath (doc ^. meta . name)
+        metaFile = metaFilePath (doc ^. meta . name)
+
+    deleteDoc :: T.Text -> IO ()
+    deleteDoc name = do
+        removeFile textFile
+        removeFile metaFile
+      where
+        textFile = pageFilePath name
+        metaFile = metaFilePath name
+
+---
+
+jsonConfig = defaultOptions { fieldLabelModifier = fieldLabelModifier }
+  where
+    fieldLabelModifier ('d':'t':'o':str) = T.unpack . T.toLower . T.pack $ str
 
 data MetaDto = MetaDto
   { dtoTags :: [T.Text]
@@ -36,8 +99,8 @@ fromMetaDto name metaDto =
     , _type = fromTypeDto $ dtoType metaDto
     }
   where
-    fromTypeDto "page" = DocPage
-    fromTypeDto "file" = DocFile
+    fromTypeDto "page" = DocTypePage
+    fromTypeDto "file" = DocTypeFile
 
 toMetaDto meta =
   MetaDto
@@ -45,76 +108,5 @@ toMetaDto meta =
     , dtoTags = meta ^. tags
     }
   where
-    toTypeDto DocPage = "page"
-    toTypeDto DocFile = "file"
-
-newHandle :: FilePath -> Repo.Handle
-newHandle path = Repo.Handle {
-  listDocs = listDocs' path,
-  loadDoc = loadDoc' path,
-  loadMeta = loadMeta' path,
-  saveDoc = saveDoc' path,
-  deleteDoc = deleteDoc' path
-}
-
----
-
-metaFilePath path name = path <> "/" <> T.unpack name <> ".json" :: FilePath
-pageFilePath path name = path <> "/" <> T.unpack name <> ".md" :: FilePath
-
-existsDoc :: FilePath -> DocName -> IO Bool
-existsDoc path name = doesFileExist $ metaFilePath path name
-
-listDocs' :: FilePath -> IO [DocName]
-listDocs' path = do
-    listing <- listDirectory path
-    pure $ catMaybes $ extractName <$> listing
-  where
-    extractName :: FilePath -> Maybe T.Text
-    extractName f =
-      case ".json" `T.breakOn` T.pack f of
-        (name, ".json") -> Just name
-        _ -> Nothing
-
-loadMeta' :: FilePath -> T.Text -> IO (Maybe DocMeta)
-loadMeta' path name = do
-  exists <- existsDoc path name
-  if exists
-    then do
-      meta <- fromMetaDto name . fromJust . decode . BL.fromStrict <$> B.readFile metaFile
-      pure $ Just meta
-    else pure Nothing
-  where
-    metaFile = metaFilePath path name
-
-loadDoc' :: FilePath -> T.Text -> IO (Maybe Document)
-loadDoc' path name = do
-  exists <- existsDoc path name
-  if exists
-    then do
-      meta <- fromJust <$> loadMeta' path name
-      text <- T.decodeUtf8 <$> B.readFile (pageFilePath path name)
-      pure $ case _type meta of
-        DocPage -> Just $ Page text meta
-        DocFile -> Nothing
-    else pure Nothing
-
-saveDoc' :: FilePath -> Document -> IO Document
-saveDoc' path doc = do
-    B.writeFile textFile $ T.encodeUtf8 (doc ^. text)
-    B.writeFile metaFile $ BL.toStrict $ encode $ toMetaDto $ doc ^. meta
-    pure doc
-  where
-    textFile = pageFilePath path (doc ^. meta . name)
-    metaFile = metaFilePath path (doc ^. meta . name)
-
-deleteDoc' :: FilePath -> T.Text -> IO ()
-deleteDoc' path name = do
-    removeFile textFile
-    removeFile metaFile
-  where
-    textFile = pageFilePath path name
-    metaFile = metaFilePath path name
-
-withHandle :: FilePath -> (Repo.Handle -> IO a) -> IO a
-withHandle path action = action (newHandle path)
+    toTypeDto DocTypePage = "page"
+    toTypeDto DocTypeFile = "file"

@@ -75,7 +75,7 @@ renderPageTemplate env title contents = renderTemplate env title thisPageMenu co
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: WikiEnv -> Document -> H.Html
+pageHtml :: WikiEnv -> Doc -> H.Html
 pageHtml env page =
   let
       rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
@@ -94,7 +94,7 @@ renderListPages env names =
       forM_ names $ \name -> do
         H.li $ renderPageLink env name
 
-renderViewPage :: WikiEnv -> Document -> H.Html
+renderViewPage :: WikiEnv -> Doc -> H.Html
 renderViewPage env page =
   renderPageTemplate env (page ^. meta. name) $ do
     H.p $ forM_ (page ^. meta . tags) $ \tag -> do
@@ -103,7 +103,7 @@ renderViewPage env page =
     H.p $
       pageHtml env page
 
-renderEditPage :: WikiEnv -> Document -> H.Html
+renderEditPage :: WikiEnv -> Doc -> H.Html
 renderEditPage env page =
   renderPageTemplate env (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))
