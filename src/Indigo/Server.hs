@@ -20,6 +20,7 @@ import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
+import Indigo.Config (guessMimeType)
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import qualified Indigo.Service.Indexer as Indexer
@@ -58,10 +59,8 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFil
     postPage name form = do
       page <- liftIO $ Repo.loadOrCreateDoc repo name
       let tags' = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
-          meta' = (page ^. Page.meta) { Page._tags = tags' }
-          page' = page { _text = Api.text form
-                       , _meta = meta'
-                       }
+          meta' = (page ^. Page.meta) {Page._tags = tags'}
+          page' = page {_text = Api.text form, _meta = meta'}
       liftIO $ do
         Repo.saveDoc repo page'
         Indexer.update indexer meta'
@@ -69,7 +68,10 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFil
     getPageFile name =
       liftIO $ do
         meta <- fromJust <$> Repo.loadMeta repo name
-        BS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
+        let contentType = guessMimeType (meta ^. file)
+            contentDisposition = "filename=" <> (meta ^. file)
+        stream <- BS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
+        pure $ addHeader contentType $ addHeader contentDisposition stream
     listTags :: Handler Markup
     listTags = do
       tags <- liftIO $ Indexer.findAllTags indexer

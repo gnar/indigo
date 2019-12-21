@@ -65,16 +65,17 @@ renderTemplate env title menus contents =
   where
     staticLink path = (env ^. host) <> path
 
-renderPageTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
-renderPageTemplate env title contents = renderTemplate env title thisPageMenu contents
+renderPageTemplate :: WikiEnv -> T.Text -> DocName -> H.Html -> H.Html
+renderPageTemplate env title name contents = renderTemplate env title thisPageMenu contents
   where
     thisPageMenu = do
       H.li ! A.class_ "nav-item dropdown" $ do
         H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "This page"
         H.div ! A.class_ "dropdown-menu" $ do
-          H.a ! A.class_ "dropdown-item" ! A.href "?action=view" $ "View"
-          H.a ! A.class_ "dropdown-item" ! A.href "?action=edit" $ "Edit"
-          H.a ! A.class_ "dropdown-item" ! A.href "?action=delete" $ "Delete"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageView) $ "View"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageEdit) $ "Edit"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageDelete) $ "Delete"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageFileUrl env name) $ "Download"
 
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
@@ -100,7 +101,7 @@ renderListPages env names =
 
 renderViewPage :: WikiEnv -> Doc -> H.Html
 renderViewPage env page@DocPage{} =
-  renderPageTemplate env (page ^. meta . name) $ do
+  renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.p $ for_ (page ^. meta . tags) $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
@@ -112,17 +113,19 @@ renderViewPage env image@DocImage {} = do
       file' = image ^. meta . file
       tags' = image ^. meta . tags
 
-  renderPageTemplate env name' $ do
+  renderPageTemplate env name' name' $ do
     H.p $ for_ tags' $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.h1 $ H.toHtml name'
-    H.p $ H.toHtml $ "This document is an image file: " <> file'
+    H.p $
+      H.toHtml $ "This document is an image file: " <> file'
+      --H.a ! A.href (pageFileUrl env name')
     H.p $ H.img ! A.src (H.toValue $ pageFileUrl env name')
 
 renderEditPage :: WikiEnv -> Doc -> H.Html
 renderEditPage env page@DocPage{} =
-  renderPageTemplate env (page ^. meta . name) $ do
+  renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))
     H.form ! A.action "#" ! A.method "post" $ do
       H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. meta . name)
@@ -138,7 +141,7 @@ renderEditPage env page@DocPage{} =
 
 renderMissingPage :: WikiEnv -> DocName -> H.Html
 renderMissingPage env name =
-  renderPageTemplate env name $ do
+  renderPageTemplate env name name $ do
     H.h1 (H.toHtml name)
     H.p $ do
       H.toHtml ("Document " <> name <> " does not exist. ")

@@ -4,6 +4,7 @@ module Indigo.Service.Repo.Impl.FileSystem (
 
 import qualified Indigo.Service.Repo as Repo
 import Indigo.Page
+import Indigo.Config (guessMimeType)
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
@@ -122,7 +123,9 @@ initialize path repo = do
         where name = dropExtension f
 
       defaultMeta f name ".md" = Just $ DocMeta name f DocTypePage []
-      defaultMeta f name ext | ext `elem` [".png", ".jpg"] = Just $ DocMeta name f DocTypeImage []
+      defaultMeta f name ext
+        | mimeType == "image/jpeg" = Just $ DocMeta name f DocTypeImage []
+        where mimeType = guessMimeType ext
       defaultMeta _ _ _ = Nothing
 
   -- Find markdown files without metadata, and add metadata for them.
