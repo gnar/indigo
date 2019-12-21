@@ -5,6 +5,7 @@ module Indigo.Api
 
   , linkGetPages
   , linkGetPage
+  , linkGetPageFile
   , linkGetTags
   , linkGetTag
 ) where
@@ -18,6 +19,8 @@ import Servant.Multipart
 import Servant.HTML.Blaze (HTML)
 import Web.FormUrlEncoded (FromForm)
 import Text.Blaze.Html (Html)
+
+import qualified Data.ByteString.Lazy as BS
 
 data PageAction = PageView | PageEdit | PageDelete | PageCreate deriving (Eq, Show)
 
@@ -40,10 +43,11 @@ data PageForm = PageForm { text :: T.Text
 type FrontendApi = "docs" :> Get '[HTML] Html
               :<|> "docs" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
               :<|> "docs" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
+              :<|> "docs"  :> Capture "name" T.Text :> "file" :> Get '[OctetStream] BS.ByteString
 
               :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html
 
-              :<|> "files" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
+              :<|> "hmm" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
 
-linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
+linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetPageFile :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)

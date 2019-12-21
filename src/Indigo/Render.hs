@@ -21,9 +21,13 @@ import qualified Indigo.Api as Api
 import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
+import Data.Foldable (for_)
 
 renderPageLink :: WikiEnv -> T.Text -> H.Html
 renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml name
+
+--renderPageFileLink :: WikiEnv -> T.Text -> H.Html
+--renderPageFileLink env name = H.a ! A.href (H.toValue $ pageFileUrl env name) $ H.toHtml name
 
 renderTagBadge :: WikiEnv -> T.Text -> H.Html
 renderTagBadge env tag = H.a ! A.href (H.toValue $ tagUrl env tag) $ badge
@@ -90,25 +94,31 @@ renderListPages :: WikiEnv -> [T.Text] -> H.Html
 renderListPages env names =
   renderTagTemplate env "Tags" $ do
     H.h1 "Pages"
-    H.ul $ do
-      forM_ names $ \name -> do
+    H.ul $
+      for_ names $ \name ->
         H.li $ renderPageLink env name
 
 renderViewPage :: WikiEnv -> Doc -> H.Html
 renderViewPage env page@DocPage{} =
   renderPageTemplate env (page ^. meta . name) $ do
-    H.p $ forM_ (page ^. meta . tags) $ \tag -> do
+    H.p $ for_ (page ^. meta . tags) $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
       pageHtml env page
-renderViewPage env image@DocImage {} =
-  renderPageTemplate env (image ^. meta . name) $ do
-    H.p $ forM_ (image ^. meta . tags) $ \tag -> do
+
+renderViewPage env image@DocImage {} = do
+  let name' = image ^. meta . name
+      file' = image ^. meta . file
+      tags' = image ^. meta . tags
+
+  renderPageTemplate env name' $ do
+    H.p $ for_ tags' $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
-    H.h1 $ H.toHtml (image ^. meta . name)
-    H.p $ H.toHtml $ "This document is an image file: " <> image ^. meta . file
+    H.h1 $ H.toHtml name'
+    H.p $ H.toHtml $ "This document is an image file: " <> file'
+    H.p $ H.img ! A.src (H.toValue $ pageFileUrl env name')
 
 renderEditPage :: WikiEnv -> Doc -> H.Html
 renderEditPage env page@DocPage{} =
@@ -138,14 +148,14 @@ renderGetTag :: WikiEnv -> T.Text -> [DocMeta] -> H.Html
 renderGetTag env tag metas =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)
-    H.ul $ do
-      forM_ metas $ \meta -> do
+    H.ul $
+      forM_ metas $ \meta ->
         H.li $ renderPageLink env (meta ^. name)
 
 renderListTags :: WikiEnv -> [T.Text] -> H.Html
 renderListTags env tags =
   renderTagTemplate env "Tags" $ do
     H.h1 "Tags"
-    H.ul $ do
-      forM_ tags $ \tag -> do
+    H.ul $
+      forM_ tags $ \tag ->
         H.li $ renderTagBadge env tag

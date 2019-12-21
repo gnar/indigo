@@ -5,6 +5,7 @@ module Indigo.WikiEnv (
   , staticDir
   , mainPage
   , pageUrl
+  , pageFileUrl
   , pagesUrl
   , tagUrl
   , tagsUrl
@@ -40,7 +41,8 @@ mainPage = lens _mainPage $ \e h -> e { _mainPage = h}
 linkUrl :: WikiEnv -> Link -> T.Text
 linkUrl env link = env ^. host <> "/" <> T.pack (uriToString id (linkURI link) "")
 
-pageUrl    env name = linkUrl env $ Api.linkGetPage name Nothing
-pagesUrl   env      = linkUrl env   Api.linkGetPages
-tagUrl     env tag  = linkUrl env $ Api.linkGetTag tag
-tagsUrl    env      = linkUrl env   Api.linkGetTags
+pageUrl     env name = linkUrl env $ Api.linkGetPage name Nothing
+pageFileUrl env name = linkUrl env $ Api.linkGetPageFile name
+pagesUrl    env      = linkUrl env   Api.linkGetPages
+tagUrl      env tag  = linkUrl env $ Api.linkGetTag tag
+tagsUrl     env      = linkUrl env   Api.linkGetTags

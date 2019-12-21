@@ -24,8 +24,10 @@ import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import qualified Indigo.Service.Indexer as Indexer
 
+import qualified Data.ByteString.Lazy as BS
+
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :<|> getTag :<|> upload
+frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFile :<|> listTags :<|> getTag :<|> hmm
   where
     listPages :: Handler Markup
     listPages = do
@@ -64,6 +66,10 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
         Repo.saveDoc repo page'
         Indexer.update indexer meta'
       pure $ renderViewPage env page'
+    getPageFile name =
+      liftIO $ do
+        meta <- fromJust <$> Repo.loadMeta repo name
+        BS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
     listTags :: Handler Markup
     listTags = do
       tags <- liftIO $ Indexer.findAllTags indexer
@@ -73,8 +79,10 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> listTags :
       res <- liftIO $ Indexer.findByTag indexer tag
       pure $ renderGetTag env tag res
 
-upload :: MultipartData Mem -> Handler Markup
-upload multipartData = do
+
+
+hmm :: MultipartData Mem -> Handler Markup
+hmm multipartData = do
   liftIO $ do
     putStrLn "Inputs:"
     forM_ (inputs multipartData) $ \input ->

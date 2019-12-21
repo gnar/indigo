@@ -10,7 +10,7 @@ import Indigo.WikiEnv
 
 data WikiTag =
     WikiPageLink T.Text T.Text
-  | WikiHashTag [T.Text]
+  | WikiImage T.Text
   | WikiError [T.Text]
   deriving (Eq, Show)
 
@@ -20,7 +20,7 @@ parseWikiTag =
     [""] -> pureWikiError []
     ["page", page] -> pureWikiPageLink page page
     ["page", page, text] -> pureWikiPageLink page text
-    ("tag":tags) -> pure $ WikiHashTag tags
+    ["image", image] -> pureWikiImage image
     [page] -> pureWikiPageLink page page
     [page, text] -> pureWikiPageLink page text
     tokens -> pureWikiError tokens
@@ -28,10 +28,11 @@ parseWikiTag =
     parse = char '{' *> (A.takeWhile (`notElem` ['}', '|']) `sepBy` char '|') <* char '}'
     pureWikiError tokens = pure $ WikiError tokens
     pureWikiPageLink page text = pure $ WikiPageLink page text
+    pureWikiImage image = pure $ WikiImage image
 
 renderWikiTag :: WikiEnv -> WikiTag -> T.Text
 renderWikiTag _ (WikiError tokens) = "{" <> T.intercalate "|" tokens <> "}"
-renderWikiTag _ (WikiHashTag _) = ""
+renderWikiTag e (WikiImage image) = mconcat [ "<img src=\"", pageFileUrl e image, "\"/>" ]
 renderWikiTag e (WikiPageLink page text) = mconcat ["<a href=\"", pageUrl e page, "\">", text, "</a>"]
 
 processWikiText :: WikiEnv -> T.Text -> T.Text

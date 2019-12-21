@@ -60,7 +60,7 @@ newHandle path = Repo.Handle listDocs loadMeta loadDoc saveDoc deleteDoc
       where
         load :: DocMeta -> IO Doc
         load meta@DocMeta {_type = DocTypePage} = DocPage <$> loadFile path meta <*> pure meta
-        load meta@DocMeta {_type = DocTypeImage} = DocImage <$> pure meta
+        load meta = pure $ DocImage meta
     saveDoc :: Doc -> IO Doc
     saveDoc page@DocPage {} = do
       saveMetaFile path (page ^. meta)
@@ -71,7 +71,7 @@ newHandle path = Repo.Handle listDocs loadMeta loadDoc saveDoc deleteDoc
       exists <- existsMetaFile path name
       when exists $ do
         meta <- loadMetaFile path name
-        removeFile (meta ^. file)
+        removeFile (filePath path meta)
         removeFile (metaPath path name)
 
 ---
@@ -122,7 +122,7 @@ initialize path repo = do
         where name = dropExtension f
 
       defaultMeta f name ".md" = Just $ DocMeta name f DocTypePage []
-      defaultMeta f name ".png" = Just $ DocMeta name f DocTypeImage []
+      defaultMeta f name ext | ext `elem` [".png", ".jpg"] = Just $ DocMeta name f DocTypeImage []
       defaultMeta _ _ _ = Nothing
 
   -- Find markdown files without metadata, and add metadata for them.
