@@ -16,7 +16,7 @@ import qualified Data.Map.Strict as Map
 import Control.Lens ((^.))
 import Data.Maybe (fromJust, fromMaybe)
 
-import Indigo.Page
+import Indigo.Doc
 
 data Index = Index {
   cache :: Map DocName DocMeta,

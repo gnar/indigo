@@ -3,7 +3,7 @@ module Indigo.Service.Repo where
 import Data.Maybe (maybe)
 import qualified Data.Text as T
 
-import Indigo.Page
+import Indigo.Doc
 
 data Handle = Handle {
     listDocs :: IO [DocName]
@@ -14,4 +14,4 @@ data Handle = Handle {
 }
 
 loadOrCreateDoc :: Handle -> DocName -> IO Doc
-loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newPage name) pure
+loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newDocPage name) pure

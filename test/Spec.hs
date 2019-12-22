@@ -4,7 +4,7 @@ import Control.Exception (evaluate)
 
 import Indigo.WikiTag
 import Indigo.WikiEnv
-import Indigo.Page
+import Indigo.Doc
 import qualified Indigo.Index as Index
 
 import Data.Attoparsec.Text (parseOnly)

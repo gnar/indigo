@@ -1,9 +1,9 @@
-module Indigo.Page
+module Indigo.Doc
   ( DocName
   , DocType(..)
   , Doc(..)
   , DocMeta(..)
-  , newPage
+  , newDocPage
   , text
   , meta
   , name
@@ -52,8 +52,8 @@ file = lens _file $ \d f -> d { _file = f }
 tags :: Lens' DocMeta [DocTag]
 tags = lens _tags $ \m t -> m { _tags = t }
 
-newPage :: DocName -> Doc
-newPage name | isValidDocName name = DocPage
+newDocPage :: DocName -> Doc
+newDocPage name | isValidDocName name = DocPage
   { _text = T.unlines ["# " <> name, "", "No contents."]
   , _meta = DocMeta
        { _name = name

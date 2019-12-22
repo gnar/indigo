@@ -3,7 +3,7 @@ module Indigo.Service.Repo.Impl.FileSystem (
 ) where
 
 import qualified Indigo.Service.Repo as Repo
-import Indigo.Page
+import Indigo.Doc
 import Indigo.Config (guessMimeType)
 
 import qualified Data.ByteString as B

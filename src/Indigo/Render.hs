@@ -18,7 +18,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Text.Pandoc (ReaderOptions(..), WriterOptions(..), readMarkdown, writeHtml5, githubMarkdownExtensions, runPure, def)
 
 import qualified Indigo.Api as Api
-import Indigo.Page
+import Indigo.Doc
 import Indigo.WikiEnv
 import Indigo.WikiTag
 import Data.Foldable (for_)

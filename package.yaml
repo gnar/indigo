@@ -36,6 +36,7 @@ dependencies:
   - servant-server
   - servant-blaze
   - servant-multipart
+  - http-types
   - http-api-data
   - http-client
   - network-uri

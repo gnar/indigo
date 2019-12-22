@@ -15,7 +15,7 @@ import Control.Lens ((^.))
 import Data.IORef
 import Data.Maybe (fromJust)
 
-import Indigo.Page
+import Indigo.Doc
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Index as Index
 

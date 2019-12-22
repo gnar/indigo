@@ -1,8 +1,9 @@
-module Indigo.Server 
+{-# LANGUAGE FlexibleContexts #-}
+module Indigo.Server
   ( main 
   ) where
 
-import Control.Lens ((^.))
+import Control.Lens ((^.), (.~), (&))
 import Control.Monad (forM_)
 import Control.Monad.IO.Class
 import qualified Data.Text as T
@@ -18,70 +19,70 @@ import qualified Data.ByteString.Lazy as LBS
 
 import Indigo.WikiEnv
 import Indigo.Api as Api
-import Indigo.Page as Page
+import Indigo.Doc as Page
 import Indigo.Render
 import Indigo.Config (guessMimeType)
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import qualified Indigo.Service.Indexer as Indexer
 
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import Data.Functor ((<&>))
+import qualified Network.HTTP.Types.Header    as HTTP
+import Control.Monad.Error.Class (MonadError)
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
 frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFile :<|> listTags :<|> getTag :<|> hmm
   where
+    redirectToDoc :: T.Text -> Handler a
+    redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
+
     listPages :: Handler Markup
-    listPages = do
-      names <- liftIO $ Indexer.findAllNames indexer
-      pure $ renderListPages env names
+    listPages = liftIO $ renderListPages env <$> Indexer.findAllNames indexer
+
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
+    getPage name Nothing = getPage name (Just PageView)
+    getPage name (Just PageView) = liftIO $ maybe (renderMissingPage env name) (renderViewPage env) <$> Repo.loadDoc repo name
+    getPage name (Just PageEdit) = liftIO $ maybe (renderMissingPage env name) (renderEditPage env) <$> Repo.loadDoc repo name
+
     getPage name (Just PageCreate) = do
-      page <- liftIO $ Repo.loadOrCreateDoc repo name
-      liftIO $ Indexer.update indexer (page ^. meta)
-      pure $ renderViewPage env page
-    getPage name (Just PageView) = do
-      page <- liftIO $ Repo.loadDoc repo name
-      case page of
-        Just page -> pure $ renderViewPage env page
-        Nothing -> pure $ renderMissingPage env name
-    getPage name (Just PageEdit) = do
-      page <- liftIO $ Repo.loadDoc repo name
-      case page of
-        Just page -> pure $ renderEditPage env page
-        Nothing -> pure $ renderMissingPage env name
+      liftIO $ do
+         page <- Repo.loadOrCreateDoc repo name
+         Indexer.update indexer (page ^. meta)
+      redirectToDoc name
+
     getPage name (Just PageDelete) = do
       liftIO $ do
         Repo.deleteDoc repo name
         Indexer.remove indexer name
-      pure (renderMissingPage env name)
-    getPage name _ = getPage name (Just PageView)
-    postPage :: T.Text -> PageForm -> Handler Markup
-    postPage name form = do
-      page <- liftIO $ Repo.loadOrCreateDoc repo name
-      let tags' = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
-          meta' = (page ^. Page.meta) {Page._tags = tags'}
-          page' = page {_text = Api.text form, _meta = meta'}
-      liftIO $ do
-        Repo.saveDoc repo page'
-        Indexer.update indexer meta'
-      pure $ renderViewPage env page'
+      redirectToDoc name
+
     getPageFile name =
       liftIO $ do
         meta <- fromJust <$> Repo.loadMeta repo name
         let contentType = guessMimeType (meta ^. file)
             contentDisposition = "filename=" <> (meta ^. file)
-        stream <- BS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
+        stream <- LBS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
         pure $ addHeader contentType $ addHeader contentDisposition stream
+
+    postPage :: T.Text -> PageForm -> Handler Markup
+    postPage name form = renderViewPage env <$> liftIO update
+      where
+        update = do
+          page <- Repo.loadOrCreateDoc repo name
+          let tags = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
+              page' = page & (Page.meta . Page.tags .~ tags)
+          Repo.saveDoc repo page'
+          Indexer.update indexer (page' ^. meta)
+          pure page'
+
     listTags :: Handler Markup
-    listTags = do
-      tags <- liftIO $ Indexer.findAllTags indexer
-      pure $ renderListTags env tags
+    listTags = liftIO $ renderListTags env <$> Indexer.findAllTags indexer
+
     getTag :: T.Text -> Handler Markup
-    getTag tag = do
-      res <- liftIO $ Indexer.findByTag indexer tag
-      pure $ renderGetTag env tag res
-
-
+    getTag tag = liftIO $ renderGetTag env tag <$> Indexer.findByTag indexer tag
 
 hmm :: MultipartData Mem -> Handler Markup
 hmm multipartData = do
