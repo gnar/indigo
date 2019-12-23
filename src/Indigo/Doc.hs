@@ -27,7 +27,7 @@ data DocMeta = DocMeta
   , _file :: FilePath
   , _type :: DocType
   , _tags :: [T.Text]
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 data Doc =
     DocPage { _text :: T.Text
@@ -35,7 +35,7 @@ data Doc =
             }
   | DocImage { _meta :: DocMeta
              }
-  deriving (Show)
+  deriving (Eq, Show)
 
 text :: Lens' Doc T.Text
 text = lens _text $ \d t -> d { _text = t }

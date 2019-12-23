@@ -15,7 +15,18 @@ import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Text.Pandoc (ReaderOptions(..), WriterOptions(..), readMarkdown, writeHtml5, githubMarkdownExtensions, runPure, def)
+import Text.Pandoc
+  ( ReaderOptions(..)
+  , WriterOptions(..)
+  , Extension(..)
+  , githubMarkdownExtensions
+  , extensionsFromList
+  , readMarkdown
+  , writeHtml5
+  , runPure
+  , def
+  , HTMLMathMethod(MathJax)
+  )
 
 import qualified Indigo.Api as Api
 import Indigo.Doc
@@ -52,7 +63,7 @@ renderTemplate env title menus contents =
           H.div ! A.class_ "collapse navbar-collapse" ! A.id "navbarSupportedContent" $ do
             H.ul ! A.class_ "navbar-nav mr-auto" $ do
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env (env ^. mainPage)) $ "Main"
-              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pagesUrl env) $ "Pages"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pagesUrl env) $ "Documents"
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ tagsUrl env) $ "Tags"
               menus
             H.form ! A.class_ "form-inline my-2 my-lg-0" $ do
@@ -60,8 +71,9 @@ renderTemplate env title menus contents =
               H.button ! A.class_ "btn btn-outline-success my-2 my-sm-0" ! A.type_ "submit" $ "Search"
       H.div ! A.class_ "container" $ do
         contents
-        H.script ! A.src (H.toValue (staticLink "/static/jquery.min.js")) $ pure ()
-        H.script ! A.src (H.toValue (staticLink "/static/bootstrap.min.js")) $ pure ()
+        H.script ! A.src (H.toValue (staticLink "/static/jquery.min.js")) $ mempty
+        H.script ! A.src (H.toValue (staticLink "/static/bootstrap.min.js")) $ mempty
+        H.script ! A.id "MathJax-script" ! A.async "" ! A.src "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" $ mempty
   where
     staticLink path = (env ^. host) <> path
 
@@ -70,7 +82,7 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
   where
     thisPageMenu = do
       H.li ! A.class_ "nav-item dropdown" $ do
-        H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "This page"
+        H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "Actions"
         H.div ! A.class_ "dropdown-menu" $ do
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageView) $ "View"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageEdit) $ "Edit"
@@ -80,12 +92,12 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: WikiEnv -> Doc -> H.Html
-pageHtml env page =
+pageHtml :: Doc -> H.Html
+pageHtml page =
   let
-      rdOpts = def { readerExtensions = githubMarkdownExtensions } :: ReaderOptions
-      wrOpts = def :: WriterOptions
-      text' = processWikiText env (page ^. text)
+      rdOpts = def { readerExtensions = githubMarkdownExtensions <> extensionsFromList [Ext_tex_math_dollars, Ext_link_attributes]} :: ReaderOptions
+      wrOpts = def { writerExtensions = readerExtensions rdOpts, writerHTMLMathMethod = MathJax "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" } :: WriterOptions
+      text' = processWikiText (page ^. text)
       res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
   in case res of
       Left err -> undefined
@@ -106,7 +118,7 @@ renderViewPage env page@DocPage{} =
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
-      pageHtml env page
+      pageHtml page
 
 renderViewPage env image@DocImage {} = do
   let name' = image ^. meta . name
@@ -120,7 +132,6 @@ renderViewPage env image@DocImage {} = do
     H.h1 $ H.toHtml name'
     H.p $
       H.toHtml $ "This document is an image file: " <> file'
-      --H.a ! A.href (pageFileUrl env name')
     H.p $ H.img ! A.src (H.toValue $ pageFileUrl env name')
 
 renderEditPage :: WikiEnv -> Doc -> H.Html

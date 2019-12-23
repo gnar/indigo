@@ -62,21 +62,21 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFil
     getPageFile name =
       liftIO $ do
         meta <- fromJust <$> Repo.loadMeta repo name
+        stream <- LBS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
         let contentType = guessMimeType (meta ^. file)
             contentDisposition = "filename=" <> (meta ^. file)
-        stream <- LBS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
         pure $ addHeader contentType $ addHeader contentDisposition stream
 
     postPage :: T.Text -> PageForm -> Handler Markup
-    postPage name form = renderViewPage env <$> liftIO update
+    postPage name form = do
+      liftIO $ do
+        page <- Repo.loadOrCreateDoc repo name <&> Page.text .~ Api.text form
+                                               <&> Page.meta . Page.tags .~ parseTags (Api.tags form)
+        Repo.saveDoc repo page
+        Indexer.update indexer (page ^. meta)
+      redirectToDoc name
       where
-        update = do
-          page <- Repo.loadOrCreateDoc repo name
-          let tags = filter (not . T.null) (fmap T.strip (T.splitOn "," (Api.tags form)))
-              page' = page & (Page.meta . Page.tags .~ tags)
-          Repo.saveDoc repo page'
-          Indexer.update indexer (page' ^. meta)
-          pure page'
+        parseTags = filter (not . T.null) . fmap T.strip . T.splitOn ","
 
     listTags :: Handler Markup
     listTags = liftIO $ renderListTags env <$> Indexer.findAllTags indexer
