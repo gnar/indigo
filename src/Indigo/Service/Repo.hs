@@ -2,6 +2,7 @@ module Indigo.Service.Repo where
 
 import Data.Maybe (maybe)
 import qualified Data.Text as T
+import qualified Data.ByteString as B
 
 import Indigo.Doc
 
@@ -11,6 +12,7 @@ data Handle = Handle {
   , loadDoc :: DocName -> IO (Maybe Doc)
   , saveDoc :: Doc -> IO Doc
   , deleteDoc :: DocName -> IO ()
+  , loadFile :: DocName -> T.Text -> IO (Maybe B.ByteString)
 }
 
 loadOrCreateDoc :: Handle -> DocName -> IO Doc

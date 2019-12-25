@@ -15,7 +15,7 @@ import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.MultipartFormData
 import Text.Blaze.Html5 (Markup, toHtml)
 import Network.Wai.Handler.Warp (run)
-import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy as LB
 
 import Indigo.WikiEnv
 import Indigo.Api as Api
@@ -32,6 +32,7 @@ import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
 import qualified Network.HTTP.Types.Header    as HTTP
 import Control.Monad.Error.Class (MonadError)
+import System.FilePath ((</>))
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
 frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFile :<|> listTags :<|> getTag :<|> hmm
@@ -59,12 +60,12 @@ frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFil
         Indexer.remove indexer name
       redirectToDoc name
 
-    getPageFile name =
+    getPageFile :: T.Text -> T.Text -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
+    getPageFile name file =
       liftIO $ do
-        meta <- fromJust <$> Repo.loadMeta repo name
-        stream <- LBS.readFile $ (env ^. pageDir) <> "/" <> (meta ^. file)
-        let contentType = guessMimeType (meta ^. file)
-            contentDisposition = "filename=" <> (meta ^. file)
+        stream <- LB.fromStrict . fromJust <$> Repo.loadFile repo name file
+        let contentType = guessMimeType (T.unpack file)
+            contentDisposition = T.unpack $ "filename=" <> file
         pure $ addHeader contentType $ addHeader contentDisposition stream
 
     postPage :: T.Text -> PageForm -> Handler Markup
@@ -95,7 +96,7 @@ hmm multipartData = do
     forM_ (files multipartData) $ \file -> do
       let content = fdPayload file
       putStrLn $ "Content of " ++ show (fdFileName file)
-      LBS.putStr content
+      LB.putStr content
   pure $ "hahaha"
 
 type Routes = FrontendApi :<|> "static" :> Raw

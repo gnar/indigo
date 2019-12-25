@@ -44,7 +44,7 @@ linkUrl env link = env ^. host <> "/" <> T.pack (uriToString id (linkURI link) "
 
 pageUrl     env name        = linkUrl env $ Api.linkGetPage name Nothing
 pageUrl'    env name action = linkUrl env $ Api.linkGetPage name (Just action)
-pageFileUrl env name        = linkUrl env $ Api.linkGetPageFile name
+pageFileUrl env name file   = linkUrl env $ Api.linkGetPageFile name file
 pagesUrl    env             = linkUrl env   Api.linkGetPages
 tagUrl      env tag         = linkUrl env $ Api.linkGetTag tag
 tagsUrl     env             = linkUrl env   Api.linkGetTags

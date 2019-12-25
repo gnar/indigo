@@ -87,7 +87,7 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageView) $ "View"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageEdit) $ "Edit"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageDelete) $ "Delete"
-          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageFileUrl env name) $ "Download"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageFileUrl env name "_text.md") $ "Download"
 
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
@@ -95,8 +95,10 @@ renderTagTemplate env title contents = renderTemplate env title mempty contents
 pageHtml :: Doc -> H.Html
 pageHtml page =
   let
-      rdOpts = def { readerExtensions = githubMarkdownExtensions <> extensionsFromList [Ext_tex_math_dollars, Ext_link_attributes]} :: ReaderOptions
-      wrOpts = def { writerExtensions = readerExtensions rdOpts, writerHTMLMathMethod = MathJax "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" } :: WriterOptions
+      extensions = githubMarkdownExtensions <> extensionsFromList [Ext_tex_math_dollars, Ext_link_attributes]
+      rdOpts = def { readerExtensions = extensions }
+      wrOpts = def { writerExtensions = extensions, writerHTMLMathMethod = MathJax "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" }
+
       text' = processWikiText (page ^. text)
       res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
   in case res of
@@ -112,7 +114,7 @@ renderListPages env names =
         H.li $ renderPageLink env name
 
 renderViewPage :: WikiEnv -> Doc -> H.Html
-renderViewPage env page@DocPage{} =
+renderViewPage env page =
   renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.p $ for_ (page ^. meta . tags) $ \tag -> do
       renderTagBadge env tag
@@ -120,22 +122,8 @@ renderViewPage env page@DocPage{} =
     H.p $
       pageHtml page
 
-renderViewPage env image@DocImage {} = do
-  let name' = image ^. meta . name
-      file' = image ^. meta . file
-      tags' = image ^. meta . tags
-
-  renderPageTemplate env name' name' $ do
-    H.p $ for_ tags' $ \tag -> do
-      renderTagBadge env tag
-      H.preEscapedText "&nbsp;"
-    H.h1 $ H.toHtml name'
-    H.p $
-      H.toHtml $ "This document is an image file: " <> file'
-    H.p $ H.img ! A.src (H.toValue $ pageFileUrl env name')
-
 renderEditPage :: WikiEnv -> Doc -> H.Html
-renderEditPage env page@DocPage{} =
+renderEditPage env page =
   renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))
     H.form ! A.action "#" ! A.method "post" $ do

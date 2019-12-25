@@ -43,7 +43,7 @@ data PageForm = PageForm { text :: T.Text
 type FrontendApi = "docs" :> Get '[HTML] Html
               :<|> "docs" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
               :<|> "docs" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
-              :<|> "docs" :> Capture "name" T.Text :> "file" :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BS.ByteString)
+              :<|> "docs" :> Capture "name" T.Text :> Capture "file" T.Text :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BS.ByteString)
 
               :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html

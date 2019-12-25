@@ -34,7 +34,7 @@ parseWikiTag = imageTag <|> refTag
     toImage [doc, text] = WikiImage doc text
 
 renderWikiTag :: WikiTag -> T.Text
-renderWikiTag (WikiImage image text) = mconcat [ "![", text, "](", image, "/file)" ]
+renderWikiTag (WikiImage image text) = mconcat [ "![", text, "](", image, ")" ]
 renderWikiTag (WikiPageRef ref text) = mconcat [ "[", text, "](", ref, ")" ]
 
 processWikiText :: T.Text -> T.Text
