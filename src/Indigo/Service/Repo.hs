@@ -16,4 +16,4 @@ data Handle = Handle {
 }
 
 loadOrCreateDoc :: Handle -> DocName -> IO Doc
-loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newDocPage name) pure
+loadOrCreateDoc repo name = loadDoc repo name >>= maybe (saveDoc repo $ newDoc name) pure

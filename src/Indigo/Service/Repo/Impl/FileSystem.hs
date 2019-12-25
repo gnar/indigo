@@ -1,4 +1,6 @@
-module Indigo.Service.Repo.Impl.FileSystem where
+module Indigo.Service.Repo.Impl.FileSystem (
+  withHandle
+) where
 
 import qualified Indigo.Service.Repo as Repo
 import Indigo.Doc
@@ -21,7 +23,7 @@ import Data.Functor ((<&>))
 import Data.Traversable (for)
 import Data.Bool (bool)
 
-type DocFile = T.Text
+---
 
 scanPath :: FilePath -> Maybe (DocName, DocFile)
 scanPath f =
@@ -41,24 +43,24 @@ scanPath f =
 scanDirectory :: FilePath -> IO [(DocName, DocFile)]
 scanDirectory docRoot = mapMaybe scanPath <$> listDirectory docRoot
 
-filePath :: DocName -> DocFile -> FilePath
-filePath name "_text.md" = T.unpack $ name <> ".md"
-filePath name "_meta.json" = T.unpack $ "." <> name <> ".json"
-filePath name file = T.unpack $ name <> "$" <> file
+genPath :: DocName -> DocFile -> FilePath
+genPath name "_text.md" = T.unpack $ name <> ".md"
+genPath name "_meta.json" = T.unpack $ "." <> name <> ".json"
+genPath name file = T.unpack $ name <> "$" <> file
 
 ---
 
 loadDocFile :: FilePath -> DocName -> DocFile -> IO (Maybe B.ByteString)
-loadDocFile docRoot name file | p <- docRoot </> filePath name file = doesFileExist p >>= bool (pure Nothing) (Just <$> B.readFile p)
+loadDocFile docRoot name file | p <- docRoot </> genPath name file = doesFileExist p >>= bool (pure Nothing) (Just <$> B.readFile p)
 
 saveDocFile :: FilePath -> DocName -> DocFile -> B.ByteString -> IO ()
-saveDocFile docRoot name file = B.writeFile (docRoot </> filePath name file)
+saveDocFile docRoot name file = B.writeFile (docRoot </> genPath name file)
 
 loadMetaFile :: FilePath -> DocName -> IO (Maybe DocMeta)
-loadMetaFile docRoot name = loadDocFile docRoot name "_meta.json" <&> fmap (fromMetaDto name . fromJust . decode . BL.fromStrict)
+loadMetaFile docRoot name = loadDocFile docRoot name "_meta.json" <&> fmap (fromMetaDto name . fromJust . decodeStrict')
 
 saveMetaFile :: FilePath -> DocName -> DocMeta -> IO ()
-saveMetaFile docRoot name meta = saveDocFile docRoot name "_meta.json" (BL.toStrict . encode $ toMetaDto meta)
+saveMetaFile docRoot name meta = saveDocFile docRoot name "_meta.json" (BL.toStrict (encode $ toMetaDto meta))
 
 loadTextFile :: FilePath -> DocName -> IO (Maybe T.Text)
 loadTextFile docRoot name = loadDocFile docRoot name "_text.md" <&> fmap T.decodeUtf8
@@ -96,7 +98,10 @@ newHandle docRoot' =
     deleteDoc name = undefined
 
     loadFile :: DocName -> DocFile -> IO (Maybe B.ByteString)
-    loadFile name file = loadDocFile docRoot name file
+    loadFile = loadDocFile docRoot
+
+withHandle :: FilePath -> (Repo.Handle -> IO a) -> IO a
+withHandle docRoot action = action (newHandle docRoot)
 
 ---
 
@@ -104,55 +109,10 @@ jsonConfig = defaultOptions { fieldLabelModifier = fieldLabelModifier }
   where
     fieldLabelModifier ('d':'t':'o':str) = T.unpack . T.toLower . T.pack $ str
 
-newtype MetaDto = MetaDto
-  { dtoTags :: [T.Text]
-  } deriving (Generic, Eq, Show)
+newtype MetaDto = MetaDto { dtoTags :: [T.Text] } deriving (Generic, Eq, Show)
 
 instance ToJSON MetaDto where toJSON = genericToJSON jsonConfig
 instance FromJSON MetaDto where parseJSON = genericParseJSON jsonConfig
 
-fromMetaDto name metaDto =
-  DocMeta
-    { _name = name
-    , _tags = dtoTags metaDto
-    }
-
-toMetaDto meta =
-  MetaDto
-    { dtoTags = meta ^. tags
-    }
-
-withHandle :: FilePath -> (Repo.Handle -> IO a) -> IO a
-withHandle docRoot action = do
-  let repo = newHandle docRoot
-  initialize docRoot repo
-  action repo
-
----
-
-initialize :: FilePath -> Repo.Handle -> IO ()
-initialize path repo = do
-  putStrLn "Initializing document repository..."
-
-
-
---  let scan f
---          | isValidDocName name = Just (f, T.pack name, takeExtension f)
---          | otherwise = Nothing
---        where name = dropExtension f
---
---      defaultMeta f name ".md" = Just $ DocMeta name f DocTypePage []
---      defaultMeta f name ext
---        | mimeType == "image/jpeg" = Just $ DocMeta name f DocTypeImage []
---        where mimeType = guessMimeType ext
---      defaultMeta _ _ _ = Nothing
-
-  -- Find markdown files without metadata, and add metadata for them.
---  names <- mapMaybe scan <$> listDirectory path
---  forM_ names $ \(f, name, ext) -> do
---    exists <- existsMetaFile path name
---    unless exists $ do
---      let meta = defaultMeta f name ext
---      case meta of
---        Just meta -> saveMetaFile path meta
---        Nothing -> mempty
+fromMetaDto name metaDto = DocMeta name (dtoTags metaDto)
+toMetaDto meta = MetaDto (meta ^. tags)
