@@ -2,7 +2,6 @@ module Indigo.Render (
     renderListPages
   , renderViewPage
   , renderEditPage
-  , renderMissingPage
   , renderListTags
   , renderGetTag
 ) where
@@ -33,6 +32,8 @@ import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
 import Data.Foldable (for_)
+
+import qualified Text.Pandoc as P
 
 renderPageLink :: WikiEnv -> T.Text -> H.Html
 renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml name
@@ -77,7 +78,7 @@ renderTemplate env title menus contents =
   where
     staticLink path = (env ^. envHost) <> path
 
-renderPageTemplate :: WikiEnv -> T.Text -> PageName -> H.Html -> H.Html
+renderPageTemplate :: WikiEnv -> T.Text -> Name -> H.Html -> H.Html
 renderPageTemplate env title name contents = renderTemplate env title thisPageMenu contents
   where
     thisPageMenu = do
@@ -92,67 +93,49 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: Page -> H.Html
-pageHtml page =
+pageHtml :: P.Pandoc -> H.Html
+pageHtml pandoc =
   let
-      extensions = githubMarkdownExtensions <> extensionsFromList [Ext_tex_math_dollars, Ext_link_attributes]
-      rdOpts = def { readerExtensions = extensions }
-      wrOpts = def { writerExtensions = extensions, writerHTMLMathMethod = MathJax "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" }
+    wrOpts = def { writerHTMLMathMethod = MathJax "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" }
+  in case runPure $ writeHtml5 wrOpts pandoc of
+    Left err -> undefined
+    Right doc -> doc
 
-      text' = processWikiText (page ^. text)
-      res = runPure $ readMarkdown rdOpts text' >>= writeHtml5 wrOpts
-  in case res of
-      Left err -> undefined
-      Right doc -> doc
-
-renderListPages :: WikiEnv -> [T.Text] -> H.Html
-renderListPages env names =
+renderListPages :: WikiEnv -> [Page] -> H.Html
+renderListPages env pages =
   renderTagTemplate env "Tags" $ do
     H.h1 "Pages"
     H.ul $
-      for_ names $ \name ->
-        H.li $ renderPageLink env name
+      for_ pages $ \page ->
+        H.li $ renderPageLink env (page ^. name)
 
-renderViewPage :: WikiEnv -> Page -> H.Html
-renderViewPage env page =
-  renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
-    H.p $ for_ (page ^. meta . tags) $ \tag -> do
+renderViewPage :: WikiEnv -> (Page, P.Pandoc) -> H.Html
+renderViewPage env (page, pandoc) =
+  renderPageTemplate env (page ^. name) (page ^. name) $ do
+    H.p $ for_ (page ^. tags) $ \tag -> do
       renderTagBadge env tag
       H.preEscapedText "&nbsp;"
     H.p $
-      pageHtml page
+      pageHtml pandoc
 
-renderEditPage :: WikiEnv -> Page -> H.Html
-renderEditPage env page =
-  renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
-    H.h1 (H.toHtml (page ^. meta . name))
+renderEditPage :: WikiEnv -> (Page, T.Text) -> H.Html
+renderEditPage env (page, text) =
+  renderPageTemplate env (page ^. name) (page ^. name) $ do
+    H.h1 (H.toHtml ("Edit: " <> page ^. name))
     H.form ! A.action "#" ! A.method "post" $ do
-      H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. meta . name)
-      H.div ! A.class_ "form-group" $ do
-        "Tags"
-        let tagsText = T.intercalate "," (page ^. meta . tags)
-        H.textarea ! A.name "tags" ! A.class_ "form-control" $ H.toHtml tagsText
-      H.div ! A.class_ "form-group" $ do
-        "Document"
-        H.textarea ! A.name "text" ! A.class_ "form-control" ! A.rows "25" $ H.toHtml (page ^. text)
+      H.input ! A.type_ "hidden" ! A.name "name" ! A.value (H.toValue $ page ^. name)
+      H.div ! A.class_ "form-group" $
+        H.textarea ! A.name "text" ! A.class_ "form-control" ! A.rows "25" $ H.toHtml text
       H.div ! A.class_ "form-group" $
         H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
-renderMissingPage :: WikiEnv -> PageName -> H.Html
-renderMissingPage env name =
-  renderPageTemplate env name name $ do
-    H.h1 (H.toHtml name)
-    H.p $ do
-      H.toHtml ("Document " <> name <> " does not exist. ")
-      H.a ! A.href "?action=create" $ "Create it?"
-
-renderGetTag :: WikiEnv -> T.Text -> [Meta] -> H.Html
-renderGetTag env tag metas =
+renderGetTag :: WikiEnv -> T.Text -> [Page] -> H.Html
+renderGetTag env tag pages =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)
     H.ul $
-      forM_ metas $ \meta ->
-        H.li $ renderPageLink env (meta ^. name)
+      forM_ pages $ \page ->
+        H.li $ renderPageLink env (page ^. name)
 
 renderListTags :: WikiEnv -> [T.Text] -> H.Html
 renderListTags env tags =

@@ -22,6 +22,7 @@ import Indigo.Page as Page
 import Indigo.Render
 import Indigo.Config (guessMimeType)
 import qualified Indigo.Service.Repo as Repo
+import qualified Indigo.Service.Ops as Ops
 import qualified Indigo.Service.Indexer as Indexer
 
 import qualified Data.ByteString as BS
@@ -32,50 +33,42 @@ import qualified Network.HTTP.Types.Header    as HTTP
 import Control.Monad.Error.Class (MonadError)
 import System.FilePath ((</>))
 
+renderEditNewPage env name =
+    renderEditPage env (newPage, newText)
+  where
+    (newPage, _, newText) = Ops.newPage name
+
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getPageFile :<|> listTags :<|> getTag :<|> hmm
+frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getFile :<|> listTags :<|> getTag :<|> hmm
   where
     redirectToDoc :: T.Text -> Handler a
     redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
 
     listPages :: Handler Markup
-    listPages = liftIO $ renderListPages env <$> Indexer.findAllNames indexer
+    listPages = liftIO $ renderListPages env <$> Indexer.findAllPages indexer
 
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
-    getPage name Nothing = getPage name (Just PageView)
-    getPage name (Just PageView) = liftIO $ maybe (renderMissingPage env name) (renderViewPage env) <$> Repo.loadDoc repo name
-    getPage name (Just PageEdit) = liftIO $ maybe (renderMissingPage env name) (renderEditPage env) <$> Repo.loadDoc repo name
+    getPage name (Just PageView) = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, b, _) -> renderViewPage env (a, b))
+    getPage name (Just PageEdit) = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, _, b) -> renderEditPage env (a, b))
+    getPage name (Just PageDelete) = liftIO (Ops.deletePage repo name) >> redirectToDoc name
+    getPage name _ = getPage name (Just PageView)
 
-    getPage name (Just PageCreate) = do
+    postPage :: T.Text -> PageForm -> Handler Markup
+    postPage name form = do
       liftIO $ do
-         page <- Repo.loadOrCreateDoc repo name
-         Indexer.update indexer (page ^. meta)
+        (Just (page, _, _)) <- Ops.savePage repo name (Api.text form)
+        Indexer.update indexer page
       redirectToDoc name
+      where
+        parseTags = filter (not . T.null) . fmap T.strip . T.splitOn ","
 
-    getPage name (Just PageDelete) = do
-      liftIO $ do
-        Repo.deleteDoc repo name
-        Indexer.remove indexer name
-      redirectToDoc name
-
-    getPageFile :: T.Text -> T.Text -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
-    getPageFile name file =
+    getFile :: T.Text -> T.Text -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
+    getFile name file =
       liftIO $ do
         stream <- LB.fromStrict . fromJust <$> Repo.loadFile repo name file
         let contentType = guessMimeType (T.unpack file)
             contentDisposition = T.unpack $ "filename=" <> file
         pure $ addHeader contentType $ addHeader contentDisposition stream
-
-    postPage :: T.Text -> PageForm -> Handler Markup
-    postPage name form = do
-      liftIO $ do
-        page <- Repo.loadOrCreateDoc repo name <&> Page.text .~ Api.text form
-                                               <&> Page.meta . Page.tags .~ parseTags (Api.tags form)
-        Repo.saveDoc repo page
-        Indexer.update indexer (page ^. meta)
-      redirectToDoc name
-      where
-        parseTags = filter (not . T.null) . fmap T.strip . T.splitOn ","
 
     listTags :: Handler Markup
     listTags = liftIO $ renderListTags env <$> Indexer.findAllTags indexer
@@ -96,6 +89,16 @@ hmm multipartData = do
       putStrLn $ "Content of " ++ show (fdFileName file)
       LB.putStr content
   pure $ "hahaha"
+
+guessMimeType :: FilePath -> String
+guessMimeType f
+  | ext `elem` [".jpg", "*.jpeg"] = "image/jpeg"
+  | ext == ".png" = "image/png"
+  | ext == ".md" = "text/markdown"
+  | otherwise = "data/octet-stream"
+  where
+    ext = toLower (takeExtension f)
+    toLower = T.unpack . T.toLower . T.pack
 
 type Routes = FrontendApi :<|> "static" :> Raw
 

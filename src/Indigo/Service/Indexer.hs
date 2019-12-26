@@ -16,20 +16,22 @@ import Data.IORef
 import Data.Maybe (fromJust)
 
 import Indigo.Page
+import qualified Indigo.Service.Ops as Ops
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Index as Index
+import Data.Functor ((<&>))
 
 data Handle = Handle {
   -- inspection
-  findAllNames :: IO [PageName],
-  findAllTags :: IO [T.Text],
-  findByName :: PageName -> IO (Maybe Meta),
-  findByTag :: T.Text -> IO [Meta],
+  findAllPages :: IO [Page],
+  findAllTags :: IO [Tag],
+  findByName :: Name -> IO (Maybe Page),
+  findByTag :: Tag -> IO [Page],
 
   -- mutation
   clear :: IO (),
-  update :: Meta -> IO (),
-  remove :: PageName -> IO ()
+  update :: Page -> IO (),
+  remove :: Name -> IO ()
 }
 
 newHandle :: IO Handle
@@ -37,10 +39,10 @@ newHandle = do
   state <- newIORef Index.empty
   pure
     Handle
-      { findAllNames = Index.findAllNames <$> readIORef state
-      , findAllTags = Index.findAllTags <$> readIORef state
-      , findByName = \name -> Index.findByName name <$> readIORef state
-      , findByTag = \tag -> Index.findByTag tag <$> readIORef state
+      { findAllPages = readIORef state <&> Index.findAllPages
+      , findAllTags = readIORef state <&> Index.findAllTags
+      , findByName = \name -> readIORef state <&> Index.findByName name
+      , findByTag = \tag -> readIORef state <&> Index.findByTag tag
       , update = modifyIORef' state . Index.update
       , remove = modifyIORef' state . Index.remove
       , clear = writeIORef state Index.empty
@@ -55,10 +57,10 @@ rebuild index repo = do
 
   clear index
 
-  names <- Repo.listDocs repo
+  names <- Repo.listFiles repo <&> fmap fst . filter (\(name, file) -> file == "_text.md")
   forM_ names $ \name -> do
-    meta <- fromJust <$> Repo.loadMeta repo name
-    update index meta
+    (page, _, _) <- fromJust <$> Ops.loadPage repo name
+    update index page
     T.putStrLn $ "Updated '" <> name <> "'"
 
 dump :: Handle -> IO ()

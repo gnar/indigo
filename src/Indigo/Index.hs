@@ -1,7 +1,7 @@
 module Indigo.Index (
   Index,
   empty,
-  findAllNames,
+  findAllPages,
   findAllTags,
   findByName,
   findByTag,
@@ -14,48 +14,48 @@ import Data.Map.Strict (Map, (!), (!?))
 import qualified Data.Map.Strict as Map
 
 import Control.Lens ((^.))
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 
 import Indigo.Page
 
 data Index = Index {
-  cache :: Map PageName Meta,
-  byTag :: Map T.Text [PageName]
+  cache :: Map Name Page,
+  byTag :: Map T.Text [Name]
 } deriving Show
 
 empty :: Index
 empty = Index Map.empty Map.empty
 
-findAllNames :: Index -> [PageName]
-findAllNames Index{..} = Map.keys cache
+findAllPages :: Index -> [Page]
+findAllPages Index{..} = Map.elems cache
 
 findAllTags :: Index -> [T.Text]
 findAllTags Index{..} = Map.keys byTag
 
-findByName :: PageName -> Index -> Maybe Meta
+findByName :: Name -> Index -> Maybe Page
 findByName name Index{..} = cache !? name
 
-findByTag :: T.Text -> Index -> [Meta]
+findByTag :: T.Text -> Index -> [Page]
 findByTag tag Index{..} = [cache ! name | name <- fromMaybe [] (byTag !? tag)]
 
-update :: Meta -> Index -> Index
-update meta index =
+update :: Page -> Index -> Index
+update page index =
   index'
-    { cache = Map.insert name' meta (cache index')
-    , byTag = foldr (Map.alter alterTags) (byTag index') (meta ^. tags)
+    { cache = Map.insert name' page (cache index')
+    , byTag = foldr (Map.alter alterTags) (byTag index') (page ^. tags)
     }
   where
-    name' = meta ^. name
+    name' = page ^. name
     index' = remove name' index
     alterTags Nothing = Just [name']
     alterTags (Just tags) = Just (name' : filter (/= name') tags)
 
-remove :: PageName -> Index -> Index
+remove :: Name -> Index -> Index
 remove name index@Index {..} = maybe index index' (cache !? name)
   where
-    index' meta = index {
+    index' page = index {
       cache = Map.delete name cache,
-      byTag = foldr (Map.alter alterTags) byTag (meta ^. tags)
+      byTag = foldr (Map.alter alterTags) byTag (page ^. tags)
     }
     alterTags Nothing = Nothing
     alterTags (Just [name]) = Nothing
