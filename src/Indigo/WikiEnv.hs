@@ -15,7 +15,6 @@ module Indigo.WikiEnv (
 import Control.Lens ((^.), Lens', lens)
 import qualified Data.Text as T
 
-import Indigo.Config
 import qualified Indigo.Api as Api
 import Servant.Links (Link, linkURI)
 import Network.URI (uriToString)

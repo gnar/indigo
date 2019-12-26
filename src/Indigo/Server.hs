@@ -20,7 +20,6 @@ import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
-import Indigo.Config (guessMimeType)
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Ops as Ops
 import qualified Indigo.Service.Indexer as Indexer
@@ -31,7 +30,7 @@ import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
 import qualified Network.HTTP.Types.Header    as HTTP
 import Control.Monad.Error.Class (MonadError)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeExtension)
 
 renderEditNewPage env name =
     renderEditPage env (newPage, newText)
