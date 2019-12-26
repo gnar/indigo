@@ -38,13 +38,16 @@ renderEditNewPage env name =
     (newPage, _, newText) = Ops.newPage name
 
 frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> getFile :<|> listTags :<|> getTag :<|> hmm
+frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|> getFile :<|> listTags :<|> getTag :<|> hmm
   where
     redirectToDoc :: T.Text -> Handler a
     redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
 
     listPages :: Handler Markup
     listPages = liftIO $ renderListPages env <$> Indexer.findAllPages indexer
+
+    index :: Handler Markup
+    index = redirectToDoc (env ^. envMainPage)
 
     getPage :: T.Text -> Maybe PageAction -> Handler Markup
     getPage name (Just PageView) = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, b, _) -> renderViewPage env (a, b))

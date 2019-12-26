@@ -37,7 +37,8 @@ instance ToHttpApiData PageAction where
 data PageForm = PageForm { text :: T.Text
                          , name :: T.Text } deriving (Eq, Show, Generic, FromForm)
 
-type FrontendApi = "pages" :> Get '[HTML] Html
+type FrontendApi = Get '[HTML] Html
+              :<|> "pages" :> Get '[HTML] Html
               :<|> "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
               :<|> "pages" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
               :<|> "pages" :> Capture "name" T.Text :> Capture "file" T.Text :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BS.ByteString)
@@ -47,4 +48,4 @@ type FrontendApi = "pages" :> Get '[HTML] Html
 
               :<|> "hmm" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
 
-linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetPageFile :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
+_ :<|> linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetPageFile :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
