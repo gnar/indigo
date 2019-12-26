@@ -6,7 +6,6 @@ module Indigo.Server
 import Control.Lens ((^.), (.~), (&))
 import Control.Monad (forM_)
 import Control.Monad.IO.Class
-import qualified Data.Text as T
 import Data.Maybe (fromJust)
 
 import Servant
@@ -19,11 +18,10 @@ import qualified Data.ByteString.Lazy as LB
 
 import Indigo.WikiEnv
 import Indigo.Api as Api
-import Indigo.Doc as Page
+import Indigo.Page as Page
 import Indigo.Render
 import Indigo.Config (guessMimeType)
 import qualified Indigo.Service.Repo as Repo
-import qualified Indigo.Service.Repo.Impl.FileSystem as RepoFileSystem
 import qualified Indigo.Service.Indexer as Indexer
 
 import qualified Data.ByteString as BS
@@ -102,17 +100,16 @@ hmm multipartData = do
 type Routes = FrontendApi :<|> "static" :> Raw
 
 server :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server Routes
-server env repo indexer = frontend env repo indexer :<|> serveDirectoryWebApp (env ^. staticDir)
+server env repo indexer = frontend env repo indexer :<|> serveDirectoryWebApp (envStaticDir env)
 
 main :: IO ()
 main =
-  RepoFileSystem.withHandle (env ^. pageDir) $ \repo ->
+  Repo.withHandle (envPageDir env) $ \repo ->
     Indexer.withHandle $ \indexer -> do
       Indexer.rebuild indexer repo
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)
   where
-    env = WikiEnv { _host = "http://localhost:8080"
-                  , _pageDir = "pages"
-                  , _staticDir = "static"
-                  , _mainPage = "Hauptseite"
+    env = WikiEnv { _envHost = "http://localhost:8080"
+                  , _envRoot = "wiki"
+                  , _envMainPage = "Hauptseite"
                   }

@@ -15,21 +15,21 @@ import Control.Lens ((^.))
 import Data.IORef
 import Data.Maybe (fromJust)
 
-import Indigo.Doc
+import Indigo.Page
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Index as Index
 
 data Handle = Handle {
   -- inspection
-  findAllNames :: IO [DocName],
+  findAllNames :: IO [PageName],
   findAllTags :: IO [T.Text],
-  findByName :: DocName -> IO (Maybe DocMeta),
-  findByTag :: T.Text -> IO [DocMeta],
+  findByName :: PageName -> IO (Maybe Meta),
+  findByTag :: T.Text -> IO [Meta],
 
   -- mutation
   clear :: IO (),
-  update :: DocMeta -> IO (),
-  remove :: DocName -> IO ()
+  update :: Meta -> IO (),
+  remove :: PageName -> IO ()
 }
 
 newHandle :: IO Handle

@@ -1,9 +1,9 @@
 module Indigo.WikiEnv (
     WikiEnv(..)
-  , host
-  , pageDir
-  , staticDir
-  , mainPage
+  , envHost
+  , envPageDir
+  , envStaticDir
+  , envMainPage
   , pageUrl
   , pageUrl'
   , pageFileUrl
@@ -18,29 +18,32 @@ import qualified Data.Text as T
 import Indigo.Config
 import qualified Indigo.Api as Api
 import Servant.Links (Link, linkURI)
-import Network.URI (URI, uriToString, uriIsRelative, uriIsAbsolute)
+import Network.URI (uriToString)
+import System.FilePath ((</>))
 
 data WikiEnv = WikiEnv
-  { _host :: T.Text
-  , _pageDir :: FilePath
-  , _staticDir :: FilePath
-  , _mainPage :: T.Text
+  { _envHost :: T.Text
+  , _envRoot :: FilePath
+  , _envMainPage :: T.Text
   } deriving Show
 
-host :: Lens' WikiEnv T.Text
-host = lens _host $ \e h -> e { _host = h}
+envHost :: Lens' WikiEnv T.Text
+envHost = lens _envHost $ \e h -> e { _envHost = h}
 
-pageDir :: Lens' WikiEnv FilePath
-pageDir = lens _pageDir $ \e pd -> e { _pageDir = pd}
+envRoot :: Lens' WikiEnv FilePath
+envRoot = lens _envRoot $ \e r -> e { _envRoot = r }
 
-staticDir :: Lens' WikiEnv FilePath
-staticDir = lens _staticDir $ \e sd -> e { _staticDir = sd }
+envMainPage :: Lens' WikiEnv T.Text
+envMainPage = lens _envMainPage $ \e h -> e { _envMainPage = h }
 
-mainPage :: Lens' WikiEnv T.Text
-mainPage = lens _mainPage $ \e h -> e { _mainPage = h}
+envPageDir :: WikiEnv -> FilePath
+envPageDir env = (env ^. envRoot) </> "pages"
+
+envStaticDir :: WikiEnv -> FilePath
+envStaticDir env = (env ^. envRoot) </> "static"
 
 linkUrl :: WikiEnv -> Link -> T.Text
-linkUrl env link = env ^. host <> "/" <> T.pack (uriToString id (linkURI link) "")
+linkUrl env link = env ^. envHost <> "/" <> T.pack (uriToString id (linkURI link) "")
 
 pageUrl     env name        = linkUrl env $ Api.linkGetPage name Nothing
 pageUrl'    env name action = linkUrl env $ Api.linkGetPage name (Just action)

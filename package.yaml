@@ -51,6 +51,7 @@ library:
 
 default-extensions:
   - OverloadedStrings
+  - UnicodeSyntax
   - GeneralizedNewtypeDeriving
   - DerivingStrategies
   - DeriveGeneric

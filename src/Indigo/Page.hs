@@ -1,12 +1,9 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE BangPatterns #-}
-
-module Indigo.Doc
-  ( DocName
-  , DocFile
-  , DocTag
-  , Doc(..)
-  , DocMeta(..)
+module Indigo.Page
+  ( PageName
+  , PageFile
+  , Tag
+  , Page(..)
+  , Meta(..)
   , newDoc
   , text
   , meta
@@ -20,40 +17,40 @@ import Control.Lens
 
 import Indigo.Config
 
-type DocTag = T.Text
-type DocName = T.Text
-type DocFile = T.Text
+type Tag = T.Text
+type PageName = T.Text
+type PageFile = T.Text
 
-data DocMeta = DocMeta
-  { _name :: DocName
+data Meta = Meta
+  { _name :: PageName
   , _tags :: [T.Text]
   } deriving (Eq, Show)
 
-data Doc = Doc
-  { _meta :: !DocMeta
+data Page = Page
+  { _meta :: !Meta
   , _text :: !T.Text
   } deriving (Eq, Show)
 
-text :: Lens' Doc T.Text
+text :: Lens' Page T.Text
 text = lens _text $ \d t -> d { _text = t }
 
-meta :: Lens' Doc DocMeta
+meta :: Lens' Page Meta
 meta = lens _meta $ \d m -> d { _meta = m }
 
-name :: Lens' DocMeta DocName
+name :: Lens' Meta PageName
 name = lens _name $ \d n -> d { _name = n }
 
-tags :: Lens' DocMeta [DocTag]
+tags :: Lens' Meta [Tag]
 tags = lens _tags $ \m t -> m { _tags = t }
 
-newDoc :: DocName -> Doc
-newDoc name | isValidDocName name = Doc
+newDoc :: PageName -> Page
+newDoc name | isValidDocName name = Page
   { _text = T.unlines ["# " <> name, "", "No contents."]
-  , _meta = DocMeta
+  , _meta = Meta
        { _name = name
        , _tags = []
        }
   }
 
-isValidDocName :: DocName -> Bool
+isValidDocName :: PageName -> Bool
 isValidDocName name = True

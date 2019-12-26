@@ -29,7 +29,7 @@ import Text.Pandoc
   )
 
 import qualified Indigo.Api as Api
-import Indigo.Doc
+import Indigo.Page
 import Indigo.WikiEnv
 import Indigo.WikiTag
 import Data.Foldable (for_)
@@ -62,7 +62,7 @@ renderTemplate env title menus contents =
         H.nav ! A.class_ "navbar navbar-expand-lg navbar-light bg-light" $ do
           H.div ! A.class_ "collapse navbar-collapse" ! A.id "navbarSupportedContent" $ do
             H.ul ! A.class_ "navbar-nav mr-auto" $ do
-              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env (env ^. mainPage)) $ "Main"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env (env ^. envMainPage)) $ "Main"
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pagesUrl env) $ "Documents"
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ tagsUrl env) $ "Tags"
               menus
@@ -75,9 +75,9 @@ renderTemplate env title menus contents =
         H.script ! A.src (H.toValue (staticLink "/static/bootstrap.min.js")) $ mempty
         H.script ! A.id "MathJax-script" ! A.async "" ! A.src "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" $ mempty
   where
-    staticLink path = (env ^. host) <> path
+    staticLink path = (env ^. envHost) <> path
 
-renderPageTemplate :: WikiEnv -> T.Text -> DocName -> H.Html -> H.Html
+renderPageTemplate :: WikiEnv -> T.Text -> PageName -> H.Html -> H.Html
 renderPageTemplate env title name contents = renderTemplate env title thisPageMenu contents
   where
     thisPageMenu = do
@@ -92,7 +92,7 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
 renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
-pageHtml :: Doc -> H.Html
+pageHtml :: Page -> H.Html
 pageHtml page =
   let
       extensions = githubMarkdownExtensions <> extensionsFromList [Ext_tex_math_dollars, Ext_link_attributes]
@@ -113,7 +113,7 @@ renderListPages env names =
       for_ names $ \name ->
         H.li $ renderPageLink env name
 
-renderViewPage :: WikiEnv -> Doc -> H.Html
+renderViewPage :: WikiEnv -> Page -> H.Html
 renderViewPage env page =
   renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.p $ for_ (page ^. meta . tags) $ \tag -> do
@@ -122,7 +122,7 @@ renderViewPage env page =
     H.p $
       pageHtml page
 
-renderEditPage :: WikiEnv -> Doc -> H.Html
+renderEditPage :: WikiEnv -> Page -> H.Html
 renderEditPage env page =
   renderPageTemplate env (page ^. meta . name) (page ^. meta . name) $ do
     H.h1 (H.toHtml (page ^. meta . name))
@@ -138,7 +138,7 @@ renderEditPage env page =
       H.div ! A.class_ "form-group" $
         H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
-renderMissingPage :: WikiEnv -> DocName -> H.Html
+renderMissingPage :: WikiEnv -> PageName -> H.Html
 renderMissingPage env name =
   renderPageTemplate env name name $ do
     H.h1 (H.toHtml name)
@@ -146,7 +146,7 @@ renderMissingPage env name =
       H.toHtml ("Document " <> name <> " does not exist. ")
       H.a ! A.href "?action=create" $ "Create it?"
 
-renderGetTag :: WikiEnv -> T.Text -> [DocMeta] -> H.Html
+renderGetTag :: WikiEnv -> T.Text -> [Meta] -> H.Html
 renderGetTag env tag metas =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)

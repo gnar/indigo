@@ -16,29 +16,29 @@ import qualified Data.Map.Strict as Map
 import Control.Lens ((^.))
 import Data.Maybe (fromJust, fromMaybe)
 
-import Indigo.Doc
+import Indigo.Page
 
 data Index = Index {
-  cache :: Map DocName DocMeta,
-  byTag :: Map T.Text [DocName]
+  cache :: Map PageName Meta,
+  byTag :: Map T.Text [PageName]
 } deriving Show
 
 empty :: Index
 empty = Index Map.empty Map.empty
 
-findAllNames :: Index -> [DocName]
+findAllNames :: Index -> [PageName]
 findAllNames Index{..} = Map.keys cache
 
 findAllTags :: Index -> [T.Text]
 findAllTags Index{..} = Map.keys byTag
 
-findByName :: DocName -> Index -> Maybe DocMeta
+findByName :: PageName -> Index -> Maybe Meta
 findByName name Index{..} = cache !? name
 
-findByTag :: T.Text -> Index -> [DocMeta]
+findByTag :: T.Text -> Index -> [Meta]
 findByTag tag Index{..} = [cache ! name | name <- fromMaybe [] (byTag !? tag)]
 
-update :: DocMeta -> Index -> Index
+update :: Meta -> Index -> Index
 update meta index =
   index'
     { cache = Map.insert name' meta (cache index')
@@ -50,7 +50,7 @@ update meta index =
     alterTags Nothing = Just [name']
     alterTags (Just tags) = Just (name' : filter (/= name') tags)
 
-remove :: DocName -> Index -> Index
+remove :: PageName -> Index -> Index
 remove name index@Index {..} = maybe index index' (cache !? name)
   where
     index' meta = index {
