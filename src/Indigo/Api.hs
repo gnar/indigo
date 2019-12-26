@@ -22,16 +22,14 @@ import Text.Blaze.Html (Html)
 
 import qualified Data.ByteString.Lazy as BS
 
-data PageAction = PageView | PageEdit | PageDelete | PageCreate deriving (Eq, Show)
+data PageAction = PageView | PageEdit | PageDelete  deriving (Eq, Show)
 
 instance FromHttpApiData PageAction where
-  parseQueryParam "create" = Right PageCreate
   parseQueryParam "view" = Right PageView
   parseQueryParam "edit" = Right PageEdit
   parseQueryParam "delete" = Right PageDelete
 
 instance ToHttpApiData PageAction where
-  toQueryParam PageCreate = "create"
   toQueryParam PageView = "view"
   toQueryParam PageEdit = "edit"
   toQueryParam PageDelete = "delete"

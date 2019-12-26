@@ -39,4 +39,3 @@ renderWikiTag (WikiPageRef ref text) = mconcat [ "[", text, "](", ref, ")" ]
 
 processWikiText :: T.Text -> T.Text
 processWikiText = streamEdit parseWikiTag renderWikiTag
-
