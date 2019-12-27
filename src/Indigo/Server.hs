@@ -20,6 +20,7 @@ import Indigo.WikiEnv
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
+import Indigo.Resources (staticFiles)
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Service.Ops as Ops
 import qualified Indigo.Service.Indexer as Indexer
@@ -105,11 +106,11 @@ guessMimeType f
 type Routes = FrontendApi :<|> "static" :> Raw
 
 server :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server Routes
-server env repo indexer = frontend env repo indexer :<|> serveDirectoryWebApp (envStaticDir env)
+server env repo indexer = frontend env repo indexer :<|> serveDirectoryEmbedded staticFiles
 
 main :: IO ()
 main =
-  Repo.withHandle (envPageDir env) $ \repo ->
+  Repo.withHandle (env ^. envRoot) $ \repo ->
     Indexer.withHandle $ \indexer -> do
       Indexer.rebuild indexer repo
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)

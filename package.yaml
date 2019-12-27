@@ -45,6 +45,7 @@ dependencies:
   - attoparsec
   - replace-attoparsec
   - pandoc
+  - file-embed
 
 library:
   source-dirs: src

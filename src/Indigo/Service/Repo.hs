@@ -43,7 +43,7 @@ parsePath f =
   where
     tmp = takeFileName f
     (base, ext) = (T.pack $ dropExtension tmp, T.pack $ takeExtension tmp)
-    parser = ((,) <$> takeWhile1 (/= '$') <*> option "" (char '$' *> takeText))
+    parser = (,) <$> takeWhile1 (/= '$') <*> option "" (char '$' *> takeText)
 
 newHandle :: FilePath -> Handle
 newHandle docRoot' = Handle listFiles loadFile saveFile deleteFile

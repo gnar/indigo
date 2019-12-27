@@ -1,8 +1,7 @@
 module Indigo.WikiEnv (
     WikiEnv(..)
   , envHost
-  , envPageDir
-  , envStaticDir
+  , envRoot
   , envMainPage
   , pageUrl
   , pageUrl'
@@ -34,12 +33,6 @@ envRoot = lens _envRoot $ \e r -> e { _envRoot = r }
 
 envMainPage :: Lens' WikiEnv T.Text
 envMainPage = lens _envMainPage $ \e h -> e { _envMainPage = h }
-
-envPageDir :: WikiEnv -> FilePath
-envPageDir env = (env ^. envRoot) </> "pages"
-
-envStaticDir :: WikiEnv -> FilePath
-envStaticDir env = (env ^. envRoot) </> "static"
 
 linkUrl :: WikiEnv -> Link -> T.Text
 linkUrl env link = env ^. envHost <> "/" <> T.pack (uriToString id (linkURI link) "")
