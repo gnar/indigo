@@ -19,15 +19,13 @@ description: |
 dependencies:
   - base >= 4.7 && < 5
   - mtl
-  - transformers
   - lens
-  - array
-  - containers
   - text
   - string-qq
+  - containers
   - bytestring
   - aeson
-  - aeson-pretty
+# - aeson-pretty
   - blaze-html
   - blaze-builder
   - wai
@@ -43,9 +41,10 @@ dependencies:
   - filepath
   - directory
   - attoparsec
-  - replace-attoparsec
+  #- replace-attoparsec
   - pandoc
   - file-embed
+  - filestore
 
 library:
   source-dirs: src

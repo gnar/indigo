@@ -2,12 +2,10 @@ import Test.Hspec
 --import Test.QuickCheck
 import Control.Exception (evaluate)
 
-import Indigo.WikiTag
 import Indigo.WikiEnv
 import Indigo.Page
 import qualified Indigo.Index as Index
 
-import Data.Attoparsec.Text (parseOnly)
 import Data.Function ((&))
 
 testIndex =
@@ -37,15 +35,5 @@ testIndex =
         Index.findByTag' "tag2" indexB `shouldMatchList` []
         Index.findByTag' "tag3" indexB `shouldMatchList` [meta2]
 
-testWikiTags =
-  describe "testWikiTags" $ do
-    describe "parseWikiTag" $
-      it "parses pagelinks" $
-      parseOnly parseWikiTag "#Hauptseite" `shouldBe` (Right $ WikiPageRef "Hauptseite" "Hauptseite")
-    describe "renderWikiTag" $ do
-      it "renders links" $
-        renderWikiTag (WikiPageRef "Main Page" "the main page") `shouldBe` "[the main page](Main Page)"
-      it "renders images" $ renderWikiTag (WikiImage "Island") `shouldBe` "![](Island/file)"
-
 main :: IO ()
-main = hspec (testWikiTags >> testIndex)
+main = hspec testIndex

@@ -2,7 +2,6 @@ module Indigo.Service.Indexer
   ( Handle(..)
   , withHandle
   , rebuild
-  , dump
   ) where
 
 import qualified Data.Text as T
@@ -62,12 +61,3 @@ rebuild index repo = do
     (page, _, _) <- fromJust <$> Ops.loadPage repo name
     update index page
     T.putStrLn $ "Updated '" <> name <> "'"
-
-dump :: Handle -> IO ()
-dump index = do
-  tags <- findAllTags index
-  forM_ tags $ \tag -> do
-    metas <- findByTag index tag
-    T.putStr $ "#" <> tag <> ": "
-    forM_ metas $ \meta -> T.putStr $ "'" <> (meta ^. name) <> "' "
-    T.putStrLn ""

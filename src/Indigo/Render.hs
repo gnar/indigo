@@ -30,7 +30,6 @@ import Text.Pandoc
 import qualified Indigo.Api as Api
 import Indigo.Page
 import Indigo.WikiEnv
-import Indigo.WikiTag
 import Data.Foldable (for_)
 
 import qualified Text.Pandoc as P

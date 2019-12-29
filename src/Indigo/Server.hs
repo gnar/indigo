@@ -59,7 +59,7 @@ frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|>
     postPage :: T.Text -> PageForm -> Handler Markup
     postPage name form = do
       liftIO $ do
-        (Just (page, _, _)) <- Ops.savePage repo name (Api.text form)
+        (page, _, _) <- Ops.savePage repo name (Api.text form)
         Indexer.update indexer page
       redirectToDoc name
       where
