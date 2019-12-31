@@ -1,26 +1,49 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Indigo.Api
   ( PageAction(..)
   , PageForm(..)
   , FrontendApi
-
-  , linkGetPages
-  , linkGetPage
-  , linkGetPageFile
-  , linkGetTags
-  , linkGetTag
+  , HTML
+  , linkRoot
+  , linkPage
+  , linkRepoFile
+  , linkTags
+  , linkTag
 ) where
 
-import Data.Aeson
-import GHC.Generics
-import Data.Text as T
+import           GHC.Generics (Generic)
 
-import Servant
-import Servant.Multipart
-import Servant.HTML.Blaze (HTML)
-import Web.FormUrlEncoded (FromForm)
-import Text.Blaze.Html (Html)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Lazy as BL
+import           Data.List.NonEmpty            (NonEmpty(..))
+import           Data.Typeable                 (Typeable)
 
-import qualified Data.ByteString.Lazy as BS
+import           Servant
+import           Servant.API                   (Accept (..), MimeRender (..))
+import           Servant.Multipart
+import           Web.FormUrlEncoded (FromForm)
+
+import           Text.Blaze.Html               (Html, ToMarkup, toHtml)
+import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+
+data HTML deriving Typeable
+data Markdown deriving Typeable
+
+instance Accept HTML where
+  contentTypes _ = "text/html; charset=utf-8" :| ["text/html"]
+
+instance ToMarkup a => MimeRender HTML a where
+  mimeRender _ = renderHtml . toHtml
+
+instance Accept Markdown where
+  contentTypes _ = "text/markdown; charset=utf-8" :| ["text/markdown"]
+
+instance MimeRender Markdown T.Text where
+  mimeRender _ = BL.fromStrict . T.encodeUtf8
+
+-----
 
 data PageAction = PageView | PageEdit | PageDelete  deriving (Eq, Show)
 
@@ -41,11 +64,12 @@ type FrontendApi = Get '[HTML] Html
               :<|> "pages" :> Get '[HTML] Html
               :<|> "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
               :<|> "pages" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
-              :<|> "pages" :> Capture "name" T.Text :> Capture "file" T.Text :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BS.ByteString)
+
+              :<|> "files" :> Capture "file" FilePath :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BL.ByteString)
 
               :<|> "tags" :> Get '[HTML] Html
-              :<|> "tags" :> Capture "tag" T.Text :>  Get '[HTML] Html
+              :<|> "tags" :> Capture "tag" T.Text :> Get '[HTML] Html
 
               :<|> "hmm" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
 
-_ :<|> linkGetPages :<|> linkGetPage :<|> _ :<|> linkGetPageFile :<|> linkGetTags :<|> linkGetTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
+_ :<|> linkRoot :<|> linkPage :<|> _ :<|> linkRepoFile :<|> linkTags :<|> linkTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)

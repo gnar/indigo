@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Indigo.Server
-  ( main 
+  ( runServer
   ) where
 
 import Control.Lens ((^.), (.~), (&))
@@ -10,13 +10,15 @@ import Data.Maybe (fromJust)
 
 import Servant
 import Servant.Multipart
+import           Text.Blaze.Html               (Html, ToMarkup, toHtml)
+
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.MultipartFormData
 import Text.Blaze.Html5 (Markup, toHtml)
 import Network.Wai.Handler.Warp (run)
 import qualified Data.ByteString.Lazy as LB
 
-import Indigo.WikiEnv
+import Indigo.Environment
 import Indigo.Api as Api
 import Indigo.Page as Page
 import Indigo.Render
@@ -33,13 +35,16 @@ import qualified Network.HTTP.Types.Header    as HTTP
 import Control.Monad.Error.Class (MonadError)
 import System.FilePath ((</>), takeExtension)
 
+import Text.Pandoc as P
+import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+
 renderEditNewPage env name =
     renderEditPage env (newPage, newText)
   where
     (newPage, _, newText) = Ops.newPage name
 
-frontend :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|> getFile :<|> listTags :<|> getTag :<|> hmm
+frontend :: Environment -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
+frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|> repoFile :<|> listTags :<|> getTag :<|> hmm
   where
     redirectToDoc :: T.Text -> Handler a
     redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
@@ -65,12 +70,12 @@ frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|>
       where
         parseTags = filter (not . T.null) . fmap T.strip . T.splitOn ","
 
-    getFile :: T.Text -> T.Text -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
-    getFile name file =
+    repoFile :: FilePath -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
+    repoFile path =
       liftIO $ do
-        stream <- LB.fromStrict . fromJust <$> Repo.loadFile repo name file
-        let contentType = guessMimeType (T.unpack file)
-            contentDisposition = T.unpack $ "filename=" <> file
+        stream <- LB.fromStrict . fromJust <$> Repo.loadFile repo path
+        let contentType = guessMimeType path
+            contentDisposition = "filename=" <> path
         pure $ addHeader contentType $ addHeader contentDisposition stream
 
     listTags :: Handler Markup
@@ -105,17 +110,12 @@ guessMimeType f
 
 type Routes = FrontendApi :<|> "static" :> Raw
 
-server :: WikiEnv -> Repo.Handle -> Indexer.Handle -> Server Routes
+server :: Environment -> Repo.Handle -> Indexer.Handle -> Server Routes
 server env repo indexer = frontend env repo indexer :<|> serveDirectoryEmbedded staticFiles
 
-main :: IO ()
-main =
-  Repo.withHandle (env ^. envRoot) $ \repo ->
+runServer :: Environment -> IO ()
+runServer env =
+  Repo.withHandle (env ^. envStore) $ \repo ->
     Indexer.withHandle $ \indexer -> do
       Indexer.rebuild indexer repo
       run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)
-  where
-    env = WikiEnv { _envHost = "http://localhost:8080"
-                  , _envRoot = "wiki"
-                  , _envMainPage = "Hauptseite"
-                  }

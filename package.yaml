@@ -24,6 +24,8 @@ dependencies:
   - string-qq
   - containers
   - bytestring
+  - optparse-generic
+  - config-ini
   - aeson
 # - aeson-pretty
   - blaze-html
@@ -32,7 +34,6 @@ dependencies:
   - warp
   - servant
   - servant-server
-  - servant-blaze
   - servant-multipart
   - http-types
   - http-api-data

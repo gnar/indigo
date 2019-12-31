@@ -2,7 +2,7 @@ import Test.Hspec
 --import Test.QuickCheck
 import Control.Exception (evaluate)
 
-import Indigo.WikiEnv
+import Indigo.Environment
 import Indigo.Page
 import qualified Indigo.Index as Index
 

@@ -1,4 +1,4 @@
-module Indigo.Service.Ops 
+module Indigo.Service.Ops
   ( loadPage
   , savePage
   , newPage
@@ -16,6 +16,7 @@ import Data.Maybe (maybe, fromJust, fromMaybe)
 import Data.Either (fromRight)
 import Control.Applicative ((<|>))
 import Data.Foldable (for_)
+import System.FilePath ((</>))
 
 readMarkdown :: T.Text -> P.Pandoc
 readMarkdown text = fromRight undefined (P.runPure (P.readMarkdown rdOpts text))
@@ -23,12 +24,18 @@ readMarkdown text = fromRight undefined (P.runPure (P.readMarkdown rdOpts text))
     extensions = P.pandocExtensions <> P.extensionsFromList [P.Ext_lists_without_preceding_blankline, P.Ext_yaml_metadata_block]
     rdOpts = P.def { P.readerExtensions = extensions }
 
+type Link = ([P.Inline], P.Target)
+
 toPage :: Name -> T.Text -> (Page, P.Pandoc, T.Text)
 toPage name text = (page, pandoc, text)
   where
-    pandoc@(P.Pandoc meta blocks) = transformLinkTargets (readMarkdown text)
+    pandoc@(P.Pandoc meta blocks) = rewriteLinks f1 f2 (readMarkdown text)
     page = Page name meta tags
     tags = maybe [] extractTags (P.lookupMeta "tags" meta)
+
+    f1, f2 :: Link -> Link
+    f1 (text, (url, title)) = if null text then f1 ([P.Str url], (url, title)) else (text, (url, title))
+    f2 = id
 
     extractTags (P.MetaList items) | tags <- [tag | (P.MetaInlines [P.Str tag]) <- items] = fmap T.pack tags
     extractTags _ = []
@@ -46,22 +53,18 @@ newPage name = toPage name text
       ]
 
 loadPage :: Repo.Handle -> Name -> IO (Maybe (Page, P.Pandoc, T.Text))
-loadPage repo name = loadTextFile repo name "_text.md" <&> fmap (toPage name)
+loadPage repo name = loadTextFile repo (T.unpack name <> ".md") <&> fmap (toPage name)
 
 savePage :: Repo.Handle -> Name -> T.Text -> IO (Page, P.Pandoc, T.Text)
 savePage repo name text = do
-  saveTextFile repo name "_text.md" text
+  saveTextFile repo (T.unpack name <> ".md") text
   return $ toPage name text
 
 deletePage :: Repo.Handle -> Name -> IO ()
-deletePage repo name = do
-  files <- Repo.listFiles repo <&> filter ((== name) . fst) <&> fmap snd
-  for_ files $ \file -> do
-    Repo.deleteFile repo name file
-    pure ()
+deletePage repo name = Repo.deleteFile repo (T.unpack name <> ".md")
 
-transformLinkTargets :: P.Pandoc -> P.Pandoc
-transformLinkTargets = transPandoc
+rewriteLinks :: (Link -> Link) -> (Link -> Link) -> P.Pandoc -> P.Pandoc
+rewriteLinks f1 f2 = transPandoc
   where
     transPandoc :: P.Pandoc -> P.Pandoc
     transPandoc (P.Pandoc meta blocks) = P.Pandoc meta (transBlocks blocks)
@@ -89,9 +92,8 @@ transformLinkTargets = transPandoc
     transInline (P.SmallCaps inlines) = P.SmallCaps (transInlines inlines)
     transInline (P.Quoted qt inlines) = P.Quoted qt (transInlines inlines)
     transInline (P.Cite cites inlines) = P.Cite cites (transInlines inlines) -- todo: transCitation
-    transInline (P.Link attr [] (url, title)) | isValidDocName (T.pack url) = P.Link attr [P.Str url] (url, title)
-    transInline (P.Link attr inlines target) = P.Link attr inlines target
-    transInline (P.Image attr inlines target) = P.Image attr (transInlines inlines) target
+    transInline (P.Link attr inlines (url, title)) | (inlines', (url', title')) <- f1 (inlines, (url, title)) = P.Link attr inlines' (url', title')
+    transInline (P.Image attr inlines (url, title)) | (inlines', (url', title')) <- f2 (inlines, (url, title)) = P.Image attr inlines' (url', title')
     transInline (P.Note blocks) = P.Note (transBlocks blocks)
     transInline (P.Span attr inlines) = P.Span attr (transInlines inlines)
     transInline inline = inline

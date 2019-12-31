@@ -29,23 +29,23 @@ import Text.Pandoc
 
 import qualified Indigo.Api as Api
 import Indigo.Page
-import Indigo.WikiEnv
+import Indigo.Environment
 import Data.Foldable (for_)
 
 import qualified Text.Pandoc as P
 
-renderPageLink :: WikiEnv -> T.Text -> H.Html
+renderPageLink :: Environment -> T.Text -> H.Html
 renderPageLink env name = H.a ! A.href (H.toValue $ pageUrl env name) $ H.toHtml name
 
 --renderPageFileLink :: WikiEnv -> T.Text -> H.Html
 --renderPageFileLink env name = H.a ! A.href (H.toValue $ pageFileUrl env name) $ H.toHtml name
 
-renderTagBadge :: WikiEnv -> T.Text -> H.Html
+renderTagBadge :: Environment -> T.Text -> H.Html
 renderTagBadge env tag = H.a ! A.href (H.toValue $ tagUrl env tag) $ badge
   where
     badge = H.span ! A.class_ "badge badge-info" $ H.toHtml ("#" <> tag)
 
-renderTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html -> H.Html
+renderTemplate :: Environment -> T.Text -> H.Html -> H.Html -> H.Html
 renderTemplate env title menus contents =
   H.docTypeHtml $ do
     H.head $ do
@@ -63,7 +63,7 @@ renderTemplate env title menus contents =
           H.div ! A.class_ "collapse navbar-collapse" ! A.id "navbarSupportedContent" $ do
             H.ul ! A.class_ "navbar-nav mr-auto" $ do
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pageUrl env (env ^. envMainPage)) $ "Main"
-              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ pagesUrl env) $ "Documents"
+              H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ rootUrl env) $ "Documents"
               H.li ! A.class_ "nav-item" $ H.a ! A.class_ "nav-link" ! A.href (H.toValue $ tagsUrl env) $ "Tags"
               menus
             H.form ! A.class_ "form-inline my-2 my-lg-0" $ do
@@ -77,19 +77,19 @@ renderTemplate env title menus contents =
   where
     staticLink path = (env ^. envHost) <> path
 
-renderPageTemplate :: WikiEnv -> T.Text -> Name -> H.Html -> H.Html
+renderPageTemplate :: Environment -> T.Text -> Name -> H.Html -> H.Html
 renderPageTemplate env title name contents = renderTemplate env title thisPageMenu contents
   where
-    thisPageMenu = do
+    thisPageMenu = 
       H.li ! A.class_ "nav-item dropdown" $ do
         H.a ! A.class_ "nav-link dropdown-toggle" ! A.href "#" ! A.id "navbarDropdown" ! H.dataAttribute "toggle" "dropdown" $ "Actions"
         H.div ! A.class_ "dropdown-menu" $ do
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageView) $ "View"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageEdit) $ "Edit"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageDelete) $ "Delete"
-          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageFileUrl env name "_text.md") $ "Download"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ repoFileUrl env (T.unpack name <> ".md")) $ "Download"
 
-renderTagTemplate :: WikiEnv -> T.Text -> H.Html -> H.Html
+renderTagTemplate :: Environment -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents
 
 pageHtml :: P.Pandoc -> H.Html
@@ -100,7 +100,7 @@ pageHtml pandoc =
     Left err -> undefined
     Right doc -> doc
 
-renderListPages :: WikiEnv -> [Page] -> H.Html
+renderListPages :: Environment -> [Page] -> H.Html
 renderListPages env pages =
   renderTagTemplate env "Tags" $ do
     H.h1 "Pages"
@@ -108,7 +108,7 @@ renderListPages env pages =
       for_ pages $ \page ->
         H.li $ renderPageLink env (page ^. name)
 
-renderViewPage :: WikiEnv -> (Page, P.Pandoc) -> H.Html
+renderViewPage :: Environment -> (Page, P.Pandoc) -> H.Html
 renderViewPage env (page, pandoc) =
   renderPageTemplate env (page ^. name) (page ^. name) $ do
     H.p $ for_ (page ^. tags) $ \tag -> do
@@ -117,7 +117,7 @@ renderViewPage env (page, pandoc) =
     H.p $
       pageHtml pandoc
 
-renderEditPage :: WikiEnv -> (Page, T.Text) -> H.Html
+renderEditPage :: Environment -> (Page, T.Text) -> H.Html
 renderEditPage env (page, text) =
   renderPageTemplate env (page ^. name) (page ^. name) $ do
     H.h1 (H.toHtml ("Edit: " <> page ^. name))
@@ -128,7 +128,7 @@ renderEditPage env (page, text) =
       H.div ! A.class_ "form-group" $
         H.button ! A.type_ "submit" ! A.class_ "btn btn-primary" $ "Submit"
 
-renderGetTag :: WikiEnv -> T.Text -> [Page] -> H.Html
+renderGetTag :: Environment -> T.Text -> [Page] -> H.Html
 renderGetTag env tag pages =
   renderTagTemplate env tag $ do
     H.h1 (H.toHtml $ "#" <> tag)
@@ -136,7 +136,7 @@ renderGetTag env tag pages =
       forM_ pages $ \page ->
         H.li $ renderPageLink env (page ^. name)
 
-renderListTags :: WikiEnv -> [T.Text] -> H.Html
+renderListTags :: Environment -> [T.Text] -> H.Html
 renderListTags env tags =
   renderTagTemplate env "Tags" $ do
     H.h1 "Tags"

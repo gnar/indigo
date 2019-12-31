@@ -3,6 +3,9 @@ module Indigo.Page where
 import qualified Text.Pandoc as P
 import qualified Data.Text as T
 import Control.Lens (Lens', lens)
+import Data.Char
+import Data.String
+import Data.Maybe (isNothing)
 
 type Tag = T.Text
 type Name = T.Text
@@ -24,5 +27,5 @@ meta = lens _meta $ \p m -> p { _meta = m }
 tags :: Lens' Page [Tag]
 tags = lens _tags $ \p t -> p { _tags = t }
 
-isValidDocName :: Name -> Bool
-isValidDocName name = True
+isValidName :: Name -> Bool
+isValidName name = (name == T.strip name) && T.all (`notElem` ("./" :: String)) name

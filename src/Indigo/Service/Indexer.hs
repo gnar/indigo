@@ -19,6 +19,7 @@ import qualified Indigo.Service.Ops as Ops
 import qualified Indigo.Service.Repo as Repo
 import qualified Indigo.Index as Index
 import Data.Functor ((<&>))
+import System.FilePath (takeExtension, dropExtension, takeBaseName)
 
 data Handle = Handle {
   -- inspection
@@ -56,8 +57,10 @@ rebuild index repo = do
 
   clear index
 
-  names <- Repo.listFiles repo <&> fmap fst . filter (\(name, file) -> file == "_text.md")
-  forM_ names $ \name -> do
+  paths <- Repo.listFiles repo <&> filter ((== ".md") . takeExtension)
+  forM_ paths $ \path -> do
+    let name = T.pack (takeBaseName path)
+    print (path, name)
     (page, _, _) <- fromJust <$> Ops.loadPage repo name
     update index page
     T.putStrLn $ "Updated '" <> name <> "'"
