@@ -87,7 +87,7 @@ renderPageTemplate env title name contents = renderTemplate env title thisPageMe
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageView) $ "View"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageEdit) $ "Edit"
           H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ pageUrl' env name Api.PageDelete) $ "Delete"
-          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ repoFileUrl env (T.unpack name <> ".md")) $ "Download"
+          H.a ! A.class_ "dropdown-item" ! A.href (H.toValue $ repoFileUrl env (name <> ".md")) $ "Download"
 
 renderTagTemplate :: Environment -> T.Text -> H.Html -> H.Html
 renderTagTemplate env title contents = renderTemplate env title mempty contents

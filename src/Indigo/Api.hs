@@ -61,15 +61,14 @@ data PageForm = PageForm { text :: T.Text
                          , name :: T.Text } deriving (Eq, Show, Generic, FromForm)
 
 type FrontendApi = Get '[HTML] Html
-              :<|> "pages" :> Get '[HTML] Html
-              :<|> "pages" :> Capture "page" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
-              :<|> "pages" :> Capture "page" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
+              :<|> Capture "path" FilePath :> QueryParam "action" PageAction     :>  Get '[HTML] Html
+              :<|> Capture "path" FilePath :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
 
-              :<|> "files" :> Capture "file" FilePath :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BL.ByteString)
+              :<|> "raw" :> Capture "file" FilePath :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BL.ByteString)
 
               :<|> "tags" :> Get '[HTML] Html
               :<|> "tags" :> Capture "tag" T.Text :> Get '[HTML] Html
 
               :<|> "hmm" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
 
-_ :<|> linkRoot :<|> linkPage :<|> _ :<|> linkRepoFile :<|> linkTags :<|> linkTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
+linkRoot :<|> linkPage :<|> _ :<|> linkRepoFile :<|> linkTags :<|> linkTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)

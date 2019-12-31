@@ -38,8 +38,8 @@ linkUrl :: Environment -> Link -> T.Text
 linkUrl env link = env ^. envHost <> "/" <> T.pack (uriToString id (linkURI link) "")
 
 rootUrl     env             = linkUrl env   Api.linkRoot
-pageUrl     env name        = linkUrl env $ Api.linkPage name Nothing
-pageUrl'    env name action = linkUrl env $ Api.linkPage name (Just action)
-repoFileUrl env path        = linkUrl env $ Api.linkRepoFile path
+pageUrl     env path        = linkUrl env $ Api.linkPage (T.unpack path) Nothing
+pageUrl'    env path action = linkUrl env $ Api.linkPage (T.unpack path) (Just action)
+repoFileUrl env path        = linkUrl env $ Api.linkRepoFile (T.unpack path)
 tagUrl      env tag         = linkUrl env $ Api.linkTag tag
 tagsUrl     env             = linkUrl env   Api.linkTags

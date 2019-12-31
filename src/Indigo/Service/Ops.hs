@@ -10,13 +10,14 @@ import qualified Data.Text as T
 import Control.Lens
 
 import Indigo.Page
-
 import Indigo.Service.Repo as Repo
+
 import Data.Maybe (maybe, fromJust, fromMaybe)
 import Data.Either (fromRight)
 import Control.Applicative ((<|>))
 import Data.Foldable (for_)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeExtension)
+import Network.URI
 
 readMarkdown :: T.Text -> P.Pandoc
 readMarkdown text = fromRight undefined (P.runPure (P.readMarkdown rdOpts text))
@@ -34,8 +35,11 @@ toPage name text = (page, pandoc, text)
     tags = maybe [] extractTags (P.lookupMeta "tags" meta)
 
     f1, f2 :: Link -> Link
-    f1 (text, (url, title)) = if null text then f1 ([P.Str url], (url, title)) else (text, (url, title))
-    f2 = id
+    f1 ([], (url, title)) = f1 ([P.Str url], (url, title))
+    f1 link = link
+
+    f2 (text, (url, title)) | (Just uri) <- parseURIReference url, uriIsRelative uri = (text, (show uri { uriPath = "raw/" <> uriPath uri }, title))
+    f2 link = link
 
     extractTags (P.MetaList items) | tags <- [tag | (P.MetaInlines [P.Str tag]) <- items] = fmap T.pack tags
     extractTags _ = []

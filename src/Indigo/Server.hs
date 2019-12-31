@@ -33,7 +33,7 @@ import qualified Data.Text.Encoding as T
 import Data.Functor ((<&>))
 import qualified Network.HTTP.Types.Header    as HTTP
 import Control.Monad.Error.Class (MonadError)
-import System.FilePath ((</>), takeExtension)
+import System.FilePath ((</>), takeExtension, dropExtension)
 
 import Text.Pandoc as P
 import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
@@ -44,25 +44,24 @@ renderEditNewPage env name =
     (newPage, _, newText) = Ops.newPage name
 
 frontend :: Environment -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = index :<|> listPages :<|> getPage :<|> postPage :<|> repoFile :<|> listTags :<|> getTag :<|> hmm
+frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> repoFile :<|> listTags :<|> getTag :<|> hmm
   where
     redirectToDoc :: T.Text -> Handler a
     redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
 
-    listPages :: Handler Markup
-    listPages = liftIO $ renderListPages env <$> Indexer.findAllPages indexer
+    listPages  :: Handler Markup
+    listPages  = liftIO $ renderListPages env <$> Indexer.findAllPages indexer
 
-    index :: Handler Markup
-    index = redirectToDoc (env ^. envMainPage)
+    name2page = T.pack . dropExtension
 
-    getPage :: T.Text -> Maybe PageAction -> Handler Markup
-    getPage name (Just PageView) = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, b, _) -> renderViewPage env (a, b))
-    getPage name (Just PageEdit) = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, _, b) -> renderEditPage env (a, b))
-    getPage name (Just PageDelete) = liftIO (Ops.deletePage repo name) >> redirectToDoc name
-    getPage name _ = getPage name (Just PageView)
+    getPage :: FilePath -> Maybe PageAction -> Handler Markup
+    getPage path (Just PageView) | name <- name2page path = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, b, _) -> renderViewPage env (a, b))
+    getPage path (Just PageEdit) | name <- name2page path  = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, _, b) -> renderEditPage env (a, b))
+    getPage path (Just PageDelete) | name <- name2page path  = liftIO (Ops.deletePage repo name) >> redirectToDoc name
+    getPage path _ = getPage path (Just PageView)
 
-    postPage :: T.Text -> PageForm -> Handler Markup
-    postPage name form = do
+    postPage :: FilePath -> PageForm -> Handler Markup
+    postPage path form | name <- name2page path = do
       liftIO $ do
         (page, _, _) <- Ops.savePage repo name (Api.text form)
         Indexer.update indexer page
