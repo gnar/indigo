@@ -32,6 +32,7 @@ dependencies:
   - blaze-builder
   - wai
   - warp
+  - streaming-commons
   - servant
   - servant-server
   - servant-multipart

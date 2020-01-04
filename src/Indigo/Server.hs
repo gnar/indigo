@@ -10,12 +10,12 @@ import Data.Maybe (fromJust)
 
 import Servant
 import Servant.Multipart
-import           Text.Blaze.Html               (Html, ToMarkup, toHtml)
+import Text.Blaze.Html               (Html, ToMarkup, toHtml)
 
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.MultipartFormData
 import Text.Blaze.Html5 (Markup, toHtml)
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp (run, runSettings)
 import qualified Data.ByteString.Lazy as LB
 
 import Indigo.Environment
@@ -37,51 +37,54 @@ import System.FilePath ((</>), takeExtension, dropExtension)
 
 import Text.Pandoc as P
 import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
-
-renderEditNewPage env name =
-    renderEditPage env (newPage, newText)
-  where
-    (newPage, _, newText) = Ops.newPage name
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
+import Data.Streaming.Network (HostPreference)
+import Data.String (fromString)
 
 frontend :: Environment -> Repo.Handle -> Indexer.Handle -> Server FrontendApi
-frontend env repo indexer = listPages :<|> getPage :<|> postPage :<|> repoFile :<|> listTags :<|> getTag :<|> hmm
+frontend env repo indexer =
+  downloadFile :<|> getTags :<|> getTag :<|> hmm :<|> getPages :<|> getPage :<|> postPage
   where
-    redirectToDoc :: T.Text -> Handler a
-    redirectToDoc name = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 $ pageUrl env name) ] }
+    getPages =
+      liftIO $ renderListPages env <$> Indexer.findAllPages indexer
 
-    listPages  :: Handler Markup
-    listPages  = liftIO $ renderListPages env <$> Indexer.findAllPages indexer
+    getPage name Nothing =
+      getPage name (Just PageView)
 
-    name2page = T.pack . dropExtension
+    getPage name (Just PageView) =
+      liftIO $ render <$> Ops.loadPage repo name
+      where
+        render (Just (page, pandoc, _)) = renderViewPage env (page, pandoc)
+        render Nothing                  = let (page, _, text) = Ops.newPage name in renderEditPage env (page, text)
 
-    getPage :: FilePath -> Maybe PageAction -> Handler Markup
-    getPage path (Just PageView) | name <- name2page path = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, b, _) -> renderViewPage env (a, b))
-    getPage path (Just PageEdit) | name <- name2page path  = liftIO $ Ops.loadPage repo name <&> maybe (renderEditNewPage env name) (\(a, _, b) -> renderEditPage env (a, b))
-    getPage path (Just PageDelete) | name <- name2page path  = liftIO (Ops.deletePage repo name) >> redirectToDoc name
-    getPage path _ = getPage path (Just PageView)
+    getPage name (Just PageEdit) =
+      liftIO $ render <$> Ops.loadPage repo name
+      where
+        render (Just (page, _, text))   = renderEditPage env (page, text)
+        render Nothing                  = let (page, _, text) = Ops.newPage name in renderEditPage env (page, text)
 
-    postPage :: FilePath -> PageForm -> Handler Markup
-    postPage path form | name <- name2page path = do
+    getPage name (Just PageDelete) = do
+      liftIO $ Ops.deletePage repo name
+      redirect env (Api.buildPageLink name Nothing)
+
+    postPage name form = do
       liftIO $ do
         (page, _, _) <- Ops.savePage repo name (Api.text form)
         Indexer.update indexer page
-      redirectToDoc name
-      where
-        parseTags = filter (not . T.null) . fmap T.strip . T.splitOn ","
+      redirect env (Api.buildPageLink name Nothing)
 
-    repoFile :: FilePath -> Handler (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] LB.ByteString)
-    repoFile path =
+    downloadFile path =
       liftIO $ do
         stream <- LB.fromStrict . fromJust <$> Repo.loadFile repo path
         let contentType = guessMimeType path
             contentDisposition = "filename=" <> path
         pure $ addHeader contentType $ addHeader contentDisposition stream
 
-    listTags :: Handler Markup
-    listTags = liftIO $ renderListTags env <$> Indexer.findAllTags indexer
+    getTags =
+      liftIO $ renderListTags env <$> Indexer.findAllTags indexer
 
-    getTag :: T.Text -> Handler Markup
-    getTag tag = liftIO $ renderGetTag env tag <$> Indexer.findByTag indexer tag
+    getTag tag =
+      liftIO $ renderGetTag env tag <$> Indexer.findByTag indexer tag
 
 hmm :: MultipartData Mem -> Handler Markup
 hmm multipartData = do
@@ -95,7 +98,7 @@ hmm multipartData = do
       let content = fdPayload file
       putStrLn $ "Content of " ++ show (fdFileName file)
       LB.putStr content
-  pure $ "hahaha"
+  pure "hahaha"
 
 guessMimeType :: FilePath -> String
 guessMimeType f
@@ -107,6 +110,11 @@ guessMimeType f
     ext = toLower (takeExtension f)
     toLower = T.unpack . T.toLower . T.pack
 
+redirect :: Environment -> Link -> Handler a
+redirect env link = throwError err303 { errHeaders = [(HTTP.hLocation, T.encodeUtf8 . T.pack . show $ buildURI env link ) ] }
+
+---
+
 type Routes = FrontendApi :<|> "static" :> Raw
 
 server :: Environment -> Repo.Handle -> Indexer.Handle -> Server Routes
@@ -117,4 +125,8 @@ runServer env =
   Repo.withHandle (env ^. envStore) $ \repo ->
     Indexer.withHandle $ \indexer -> do
       Indexer.rebuild indexer repo
-      run 8080 $ serve (Proxy :: Proxy Routes) (server env repo indexer)
+      runSettings settings $ serve (Proxy :: Proxy Routes) (server env repo indexer)
+  where
+    settings = defaultSettings
+                 & setHost (fromString (env ^. envHost))
+                 & setPort (fromIntegral (env ^. envPort))

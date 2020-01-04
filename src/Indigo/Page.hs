@@ -28,4 +28,10 @@ tags :: Lens' Page [Tag]
 tags = lens _tags $ \p t -> p { _tags = t }
 
 isValidName :: Name -> Bool
-isValidName name = (name == T.strip name) && T.all (`notElem` ("./" :: String)) name
+isValidName "tag" = False
+isValidName "raw" = False
+isValidName "hmm" = False
+isValidName name = isStripped && hasNoInvalidChars
+  where
+    isStripped = name == T.strip name
+    hasNoInvalidChars = T.all (`notElem` ("./" :: String)) name

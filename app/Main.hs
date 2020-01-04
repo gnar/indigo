@@ -20,8 +20,9 @@ parseConfigFile path = T.readFile path <&> flip parseIniFile parse
   where
     parse = section "indigo" $
               Environment <$> fieldOf "host" string
+                          <*> fieldOf "port" number
                           <*> fieldOf "store" string
-                          <*> fieldOf "mainPage" string
+                          <*> fieldOf "mainpage" string
 
 main :: IO ()
 main = do
@@ -34,7 +35,8 @@ main = do
 
 test :: IO ()
 test = do
-  let env = Environment { _envHost = "http://localhost:8080"
+  let env = Environment { _envHost = "localhost"
+                        , _envPort = 8080
                         , _envStore = "wiki"
                         , _envMainPage = "Hauptseite"
                         }

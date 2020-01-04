@@ -5,11 +5,11 @@ module Indigo.Api
   , PageForm(..)
   , FrontendApi
   , HTML
-  , linkRoot
-  , linkPage
-  , linkRepoFile
-  , linkTags
-  , linkTag
+  , buildRootLink
+  , buildPageLink
+  , buildTagLink
+  , buildTagsLink
+  , buildFileLink
 ) where
 
 import           GHC.Generics (Generic)
@@ -60,15 +60,13 @@ instance ToHttpApiData PageAction where
 data PageForm = PageForm { text :: T.Text
                          , name :: T.Text } deriving (Eq, Show, Generic, FromForm)
 
-type FrontendApi = Get '[HTML] Html
-              :<|> Capture "path" FilePath :> QueryParam "action" PageAction     :>  Get '[HTML] Html
-              :<|> Capture "path" FilePath :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
-
-              :<|> "raw" :> Capture "file" FilePath :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BL.ByteString)
-
-              :<|> "tags" :> Get '[HTML] Html
-              :<|> "tags" :> Capture "tag" T.Text :> Get '[HTML] Html
-
+type FrontendApi = "raw" :> Capture "file" FilePath :> Get '[OctetStream] (Headers '[Header "Content-Type" String, Header "Content-Disposition" String] BL.ByteString)
+              :<|> "tag" :> Get '[HTML] Html
+              :<|> "tag" :> Capture "tag" T.Text :> Get '[HTML] Html
               :<|> "hmm" :> MultipartForm Mem (MultipartData Mem) :> Post '[HTML] Html
 
-linkRoot :<|> linkPage :<|> _ :<|> linkRepoFile :<|> linkTags :<|> linkTag :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
+              :<|> Get '[HTML] Html
+              :<|> Capture "path" T.Text :> QueryParam "action" PageAction     :>  Get '[HTML] Html
+              :<|> Capture "path" T.Text :> ReqBody '[FormUrlEncoded] PageForm :> Post '[HTML] Html
+
+buildFileLink :<|> buildTagsLink :<|> buildTagLink :<|> _ :<|> buildRootLink :<|> buildPageLink :<|> _ = allLinks (Proxy :: Proxy FrontendApi)
