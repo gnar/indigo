@@ -10,8 +10,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.FileStore as F
 import Data.Functor ((<&>))
+import Data.Maybe (fromMaybe)
 
-newtype Arguments = Arguments{configFile :: FilePath}
+newtype Arguments = Arguments{config :: Maybe FilePath}
   deriving stock (Eq, Show, Generic)
   deriving anyclass ParseRecord
 
@@ -21,13 +22,13 @@ parseConfigFile path = T.readFile path <&> flip parseIniFile parse
     parse = section "indigo" $
               Environment <$> fieldOf "host" string
                           <*> fieldOf "port" number
-                          <*> fieldOf "store" string
+                          <*> fieldOf "wikipath" string
                           <*> fieldOf "mainpage" string
 
 main :: IO ()
 main = do
-  Arguments{configFile} <- getRecord "Indigo personal Wiki"
-  parseConfigFile configFile >>= \case
+  Arguments{config} <- getRecord "Indigo personal Wiki"
+  parseConfigFile (fromMaybe "indigo.ini" config) >>= \case
     (Right env) -> do
       print env
       runServer env
