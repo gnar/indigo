@@ -9,7 +9,6 @@ import Data.Maybe (isNothing)
 
 type Tag = T.Text
 type Name = T.Text
-type Doc = P.Pandoc
 type Meta = P.Meta
 
 data Page = Page

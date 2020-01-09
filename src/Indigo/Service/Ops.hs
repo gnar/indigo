@@ -5,6 +5,7 @@ module Indigo.Service.Ops
   , deletePage
   ) where
 
+import Text.Pandoc.Walk (walk)
 import qualified Text.Pandoc as P
 import qualified Data.Text as T
 import Control.Lens
@@ -30,19 +31,34 @@ type Link = ([P.Inline], P.Target)
 toPage :: Name -> T.Text -> (Page, P.Pandoc, T.Text)
 toPage name text = (page, pandoc, text)
   where
-    pandoc@(P.Pandoc meta blocks) = rewriteLinks f1 f2 (readMarkdown text)
+    pandoc@(P.Pandoc meta blocks) = rewriteLinks (readMarkdown text)
     page = Page name meta tags
     tags = maybe [] extractTags (P.lookupMeta "tags" meta)
 
-    f1, f2 :: Link -> Link
-    f1 ([], (url, title)) = f1 ([P.Str url], (url, title))
-    f1 link = link
-
-    f2 (text, (url, title)) | (Just uri) <- parseURIReference url, uriIsRelative uri = (text, (show uri { uriPath = "raw/" <> uriPath uri }, title))
-    f2 link = link
-
     extractTags (P.MetaList items) | tags <- [tag | (P.MetaInlines [P.Str tag]) <- items] = fmap T.pack tags
     extractTags _ = []
+
+    rewriteLinks :: P.Pandoc -> P.Pandoc
+    rewriteLinks = walk transInline
+      where
+        transInline (P.Link attr inlines (url, title)) | (inlines', (url', title')) <- f1 (inlines, (url, title)) = P.Link attr inlines' (url', title')
+        transInline (P.Image attr inlines (url, title)) | (inlines', (url', title')) <- f2 (inlines, (url, title)) = P.Image attr inlines' (url', title')
+        transInline link = link
+
+        f1 ([], ([], title)) = ([], ([], title))
+        f1 (text@[P.Str url], ([], title)) = f1 (text, (url, title))
+        f1 ([], (url, title)) = f1 ([P.Str url], (url, title))
+        f1 (text, (url, title))
+          | isExternal url = (text ++ externalSymbol, (url, title))
+          | otherwise = (text, (url, title))
+          where
+            isExternal url | (Just uri) <- parseURIReference url = uriIsAbsolute uri
+            isExternal _ = False
+            externalSymbol = [P.Space, P.Span ("", ["fa", "fa-external-link-alt"], []) []]
+
+        f2 (text, (url, title))
+          | (Just uri) <- parseURIReference url, uriIsRelative uri = (text, (show uri { uriPath = "raw/" <> uriPath uri }, title))
+          | otherwise = (text, (url, title))
 
 newPage :: Name -> (Page, P.Pandoc, T.Text)
 newPage name = toPage name text
@@ -66,39 +82,3 @@ savePage repo name text = do
 
 deletePage :: Repo.Handle -> Name -> IO ()
 deletePage repo name = Repo.deleteFile repo (T.unpack name <> ".md")
-
-rewriteLinks :: (Link -> Link) -> (Link -> Link) -> P.Pandoc -> P.Pandoc
-rewriteLinks f1 f2 = transPandoc
-  where
-    transPandoc :: P.Pandoc -> P.Pandoc
-    transPandoc (P.Pandoc meta blocks) = P.Pandoc meta (transBlocks blocks)
-
-    transBlock :: P.Block -> P.Block
-    transBlock (P.Plain inlines) = P.Plain (transInlines inlines)
-    transBlock (P.Para inlines) = P.Para (transInlines inlines)
-    transBlock (P.LineBlock inliness) = P.LineBlock (fmap transInlines inliness)
-    transBlock (P.BlockQuote blocks) = P.BlockQuote (transBlocks blocks)
-    transBlock (P.OrderedList attributes blockss) = P.OrderedList attributes (fmap transBlocks blockss)
-    transBlock (P.BulletList blockss) = P.BulletList (fmap transBlocks blockss)
-    transBlock (P.DefinitionList entries) = P.DefinitionList [(fmap transInline inlines, fmap transBlocks blockss) | (inlines, blockss) <- entries]
-    transBlock (P.Header level attr inlines) = P.Header level attr (transInlines inlines)
-    transBlock (P.Table inlines aligns relColWidths headers rows) = P.Table (transInlines inlines) aligns relColWidths (fmap transBlocks headers) (fmap (fmap transBlocks) rows)
-    transBlock (P.Div attr blocks) = P.Div attr (transBlocks blocks)
-    transBlock block = block
-    transBlocks = fmap transBlock
-
-    transInline :: P.Inline -> P.Inline
-    transInline (P.Emph inlines) = P.Emph (transInlines inlines)
-    transInline (P.Strong inlines) = P.Strong (transInlines inlines)
-    transInline (P.Strikeout inlines) = P.Strikeout (transInlines inlines)
-    transInline (P.Superscript inlines) = P.Superscript (transInlines inlines)
-    transInline (P.Subscript inlines) = P.Subscript (transInlines inlines)
-    transInline (P.SmallCaps inlines) = P.SmallCaps (transInlines inlines)
-    transInline (P.Quoted qt inlines) = P.Quoted qt (transInlines inlines)
-    transInline (P.Cite cites inlines) = P.Cite cites (transInlines inlines) -- todo: transCitation
-    transInline (P.Link attr inlines (url, title)) | (inlines', (url', title')) <- f1 (inlines, (url, title)) = P.Link attr inlines' (url', title')
-    transInline (P.Image attr inlines (url, title)) | (inlines', (url', title')) <- f2 (inlines, (url, title)) = P.Image attr inlines' (url', title')
-    transInline (P.Note blocks) = P.Note (transBlocks blocks)
-    transInline (P.Span attr inlines) = P.Span attr (transInlines inlines)
-    transInline inline = inline
-    transInlines = fmap transInline

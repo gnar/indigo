@@ -45,8 +45,8 @@ dependencies:
   - attoparsec
   #- replace-attoparsec
   - pandoc
+  - pandoc-types
   - file-embed
-  - filestore
 
 library:
   source-dirs: src

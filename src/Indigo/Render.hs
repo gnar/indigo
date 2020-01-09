@@ -53,10 +53,9 @@ renderTemplate env title menus contents =
       H.meta ! A.charset "utf-8"
       H.meta ! A.httpEquiv "X-UA-Compatible" ! A.content "IE=edge"
       H.meta ! A.name "viewport" ! A.content "width=device-width, initial-scale=1"
-      H.meta ! A.name "description" ! A.content ""
-      H.meta ! A.name "author" ! A.content ""
       H.link ! A.rel "stylesheet" ! A.href (H.toValue (staticLink env "bootstrap.min.css"))
       H.link ! A.rel "stylesheet" ! A.href (H.toValue (staticLink env "user.css"))
+      H.link ! A.rel "stylesheet" ! A.href "https://use.fontawesome.com/releases/v5.7.0/css/all.css" -- ! A.integrity "sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" ! A.crossorigin "anonymous"
       H.title $ H.toHtml title
     H.body $ do
       H.header $ do

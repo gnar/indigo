@@ -8,7 +8,6 @@ import Data.Ini.Config
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import qualified Data.FileStore as F
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
 
