@@ -15,12 +15,12 @@ import Text.Blaze.Html               (Html, ToMarkup, toHtml)
 import Network.HTTP.Client hiding (Proxy)
 import Network.HTTP.Client.MultipartFormData
 import Text.Blaze.Html5 (Markup, toHtml)
-import Network.Wai.Handler.Warp (run, runSettings)
+import Network.Wai.Handler.Warp (run, runSettings, defaultSettings, setHost, setPort)
 import qualified Data.ByteString.Lazy as LB
 
-import Indigo.Environment
 import Indigo.Api as Api
-import Indigo.Page as Page
+import Indigo.Urls
+import Indigo.Environment
 import Indigo.Render
 import Indigo.Resources (staticFiles)
 import qualified Indigo.Service.Repo as Repo
@@ -37,7 +37,6 @@ import System.FilePath ((</>), takeExtension, dropExtension)
 
 import Text.Pandoc as P
 import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
-import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
 import Data.Streaming.Network (HostPreference)
 import Data.String (fromString)
 

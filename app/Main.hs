@@ -15,29 +15,20 @@ newtype Arguments = Arguments{config :: Maybe FilePath}
   deriving stock (Eq, Show, Generic)
   deriving anyclass ParseRecord
 
-parseConfigFile :: FilePath -> IO (Either String Environment)
-parseConfigFile path = T.readFile path <&> flip parseIniFile parse
+parseConfigFile :: T.Text -> Either String Environment
+parseConfigFile text = parseIniFile text parse
   where
-    parse = section "indigo" $
-              Environment <$> fieldOf "host" string
-                          <*> fieldOf "port" number
-                          <*> fieldOf "wikipath" string
-                          <*> fieldOf "mainpage" string
+    parse =
+       Environment <$> section "server" (fieldOf "host" string)
+                   <*> section "server" (fieldOf "port" number)
+                   <*> section "config" (fieldOf "wikipath" string)
+                   <*> section "config" (fieldOf "mainpage" string)
 
 main :: IO ()
 main = do
-  Arguments{config} <- getRecord "Indigo personal Wiki"
-  parseConfigFile (fromMaybe "indigo.ini" config) >>= \case
-    (Right env) -> do
-      print env
-      runServer env
-    (Left err) -> putStrLn $ "Error parse config file: " ++ err
+  args <- getRecord "The Indigo Personal Wiki"
+  config <- T.readFile $ fromMaybe "indigo.ini" (config args)
 
-test :: IO ()
-test = do
-  let env = Environment { _envHost = "localhost"
-                        , _envPort = 8080
-                        , _envStore = "wiki"
-                        , _envMainPage = "Hauptseite"
-                        }
-  runServer env
+  case parseConfigFile config of
+    (Left err) -> putStrLn $ "Error parsing config file: " ++ err
+    (Right env) -> runServer env

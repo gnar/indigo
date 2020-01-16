@@ -28,6 +28,7 @@ import Text.Pandoc
   )
 
 import qualified Indigo.Api as Api
+import Indigo.Urls (staticLink, buildURI)
 import Indigo.Page
 import Indigo.Environment
 import Data.Foldable (for_)
